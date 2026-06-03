@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feedback de Atendimento — Moradas da Serra</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --purple: #7F77DD; --purple-dark: #534AB7; --purple-light: #EEEDFE; --teal: #1D9E75; --teal-light: #E1F5EE; --red: #E24B4A; --red-light: #FCEBEB; --amber: #EF9F27; --amber-light: #FAEEDA; --border: #E0E0E0; --bg: #F5F5F5; --bg2: #fff; --text: #1A1A1A; --muted: #666; --radius: 8px; --radius-lg: 12px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); font-size: 14px; }
+  header { background: linear-gradient(135deg, #534AB7, #7F77DD); padding: 16px 20px; color: #fff; display: flex; align-items: center; gap: 10px; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .sub { font-size: 12px; opacity: 0.8; }
+  .main { max-width: 520px; margin: 0 auto; padding: 20px 16px; }
+  .card { background: var(--bg2); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  .input-group { margin-bottom: 12px; }
+  .input-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
+  .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--text); background: #fff; font-family: inherit; transition: border 0.15s; }
+  .input-group input:focus, .input-group select:focus, .input-group textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(127,119,221,0.12); }
+  .input-group textarea { resize: vertical; min-height: 80px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; width: 100%; justify-content: center; }
+  .btn-primary { background: var(--purple); color: #fff; }
+  .btn-primary:hover { background: var(--purple-dark); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .alert { padding: 12px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .alert-success { background: var(--teal-light); color: var(--teal); border: 1px solid #5DCAA5; }
+  .alert-error { background: var(--red-light); color: var(--red); border: 1px solid #F09595; }
+  .alert-info { background: var(--purple-light); color: var(--purple-dark); border: 1px solid #AFA9EC; }
+  .badge { display: inline-flex; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .lead-card { background: var(--purple-light); border-radius: var(--radius); padding: 12px; margin-bottom: 12px; border-left: 3px solid var(--purple); }
+  .lead-card .nome { font-size: 16px; font-weight: 600; color: var(--purple-dark); }
+  .lead-card .info { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .hist-item { background: #F7F7F7; border-radius: var(--radius); padding: 8px 12px; margin-bottom: 6px; border-left: 3px solid var(--purple); }
+  .hist-meta { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .hist-txt { font-size: 13px; }
+  .status-novo { background: #E6F1FB; color: #185FA5; }
+  .status-contato { background: #FAEEDA; color: #854F0B; }
+  .status-visita { background: #EEEDFE; color: #534AB7; }
+  .status-proposta { background: #EAF3DE; color: #639922; }
+  .status-fechado { background: #E1F5EE; color: #1D9E75; }
+  .status-sem { background: #F3F3F3; color: #555; }
+  .status-interesse { background: #FEF3EC; color: #C2410C; }
+  footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); }
+  #loading { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  </div>
+  <div>
+    <h1>Moradas da Serra</h1>
+    <div class="sub">Registro de atendimento</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Passo 1: Identificação do corretor -->
+  <div id="step-corretor" class="card">
+    <div class="card-title">👤 Quem está atendendo?</div>
+    <div class="input-group">
+      <label>Seu nome</label>
+      <input type="text" id="corretor-nome" placeholder="Digite seu nome" oninput="salvarCorretor()">
+    </div>
+  </div>
+
+  <!-- Passo 2: Buscar lead pelo número -->
+  <div class="card">
+    <div class="card-title">🔍 Buscar lead pelo número</div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="busca-numero" placeholder="(15) 99999-9999 ou número do WhatsApp..." 
+        style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;"
+        oninput="buscarLead()" onkeydown="if(event.key==='Enter')buscarLead()">
+      <button onclick="buscarLead()" style="padding:9px 14px;background:var(--purple);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:13px;">Buscar</button>
+    </div>
+    <div id="resultado-busca" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- Lead encontrado -->
+  <div id="lead-found" style="display:none;">
+    <div class="card">
+      <div id="lead-info"></div>
+      <div class="card-title" style="margin-top:12px;">📋 Registrar atendimento</div>
+      <div class="input-group">
+        <label>Status atual</label>
+        <select id="novo-status">
+          <option>Novo</option>
+          <option>Contato feito</option>
+          <option>Visita agendada</option>
+          <option>Proposta enviada</option>
+          <option>Fechado</option>
+          <option>Sem interação</option>
+          <option>Sem interesse</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>🔔 Próximo contato</label>
+        <input type="date" id="novo-proximo">
+      </div>
+      <div class="input-group">
+        <label>Feedback do atendimento</label>
+        <textarea id="novo-feedback" placeholder="Descreva o que foi conversado..."></textarea>
+      </div>
+      <button class="btn btn-primary" id="btn-salvar" onclick="salvarAtendimento()">
+        ✔ Salvar atendimento
+      </button>
+      <div id="alert-salvo" class="alert alert-success" style="display:none;margin-top:12px;">✔ Atendimento salvo com sucesso!</div>
+    </div>
+
+    <div class="card" id="historico-card" style="display:none;">
+      <div class="card-title">📋 Histórico de atendimentos</div>
+      <div id="historico-lista"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Moradas da Serra · Trevizan Consultoria Imobiliária</footer>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyANrlnyfWzWw7lTOO63fhDXuhPscSiSlt8",
+  authDomain: "moradas-da-serra.firebaseapp.com",
+  projectId: "moradas-da-serra",
+  storageBucket: "moradas-da-serra.firebasestorage.app",
+  messagingSenderId: "492069160697",
+  appId: "1:492069160697:web:6d13659d6a04ab39130428"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const leadsCol = db.collection('leads');
+
+let leadAtual = null;
+
+// Restaurar nome do corretor
+const corretorSalvo = localStorage.getItem('corretor_nome_local');
+if (corretorSalvo) document.getElementById('corretor-nome').value = corretorSalvo;
+
+function salvarCorretor() {
+  localStorage.setItem('corretor_nome_local', document.getElementById('corretor-nome').value);
+}
+
+function normalizar(num) {
+  let d = num.replace(/\D/g,'');
+  if (d.startsWith('55') && d.length > 12) d = d.slice(2);
+  if (d.length === 11) return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7);
+  if (d.length === 10) return '('+d.slice(0,2)+') '+d.slice(2,6)+'-'+d.slice(6);
+  return num.trim();
+}
+
+function statusClass(s) {
+  const m = {'Novo':'status-novo','Contato feito':'status-contato','Visita agendada':'status-visita','Proposta enviada':'status-proposta','Fechado':'status-fechado','Sem interação':'status-sem','Sem interesse':'status-interesse'};
+  return m[s]||'status-sem';
+}
+
+async function buscarLead() {
+  const val = document.getElementById('busca-numero').value.trim();
+  if (val.length < 8) return;
+  const fmt = normalizar(val);
+  const res = document.getElementById('resultado-busca');
+  res.innerHTML = '<div style="font-size:12px;color:var(--muted);">🔄 Buscando...</div>';
+  try {
+    const snap = await leadsCol.where('phone','==',fmt).limit(1).get();
+    if (snap.empty) {
+      // tenta buscar por raw
+      const snap2 = await leadsCol.get();
+      const found = snap2.docs.find(d => {
+        const raw = (d.data().raw||'').replace(/\D/g,'');
+        const digits = val.replace(/\D/g,'');
+        return raw.endsWith(digits) || digits.endsWith(raw);
+      });
+      if (found) { mostrarLead(found.data()); res.innerHTML=''; }
+      else { res.innerHTML='<div style="font-size:13px;color:var(--red-dark);padding:8px;background:var(--red-light);border-radius:var(--radius);">❌ Lead não encontrado. Verifique o número.</div>'; document.getElementById('lead-found').style.display='none'; }
+    } else {
+      mostrarLead(snap.docs[0].data());
+      res.innerHTML = '';
+    }
+  } catch(e) {
+    res.innerHTML = '<div style="font-size:13px;color:var(--red-dark);">Erro ao buscar. Verifique a conexão.</div>';
+  }
+}
+
+function mostrarLead(lead) {
+  leadAtual = lead;
+  const hist = lead.historico || (lead.feedback ? [{texto:lead.feedback,data:lead.data,corretor:lead.corretor}] : []);
+  document.getElementById('lead-info').innerHTML = `
+    <div class="lead-card">
+      <div class="nome">${lead.nome}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="badge ${statusClass(lead.status)}">${lead.status}</span>
+        <span style="font-size:12px;color:var(--muted);">📞 ${lead.phone}</span>
+        <span style="font-size:12px;color:var(--muted);">👤 ${lead.corretor}</span>
+        ${lead.qtdContatos>1?`<span style="font-size:12px;color:var(--amber-dark);">🔄 ${lead.qtdContatos} contatos</span>`:''}
+      </div>
+    </div>`;
+  // Preenche status atual
+  document.getElementById('novo-status').value = lead.status;
+  // Preenche próximo contato
+  if (lead.proximo && lead.proximo !== '-') {
+    const p = lead.proximo.split('/');
+    if (p.length===3) document.getElementById('novo-proximo').value = p[2]+'-'+p[1]+'-'+p[0];
+  }
+  document.getElementById('lead-found').style.display = 'block';
+  document.getElementById('novo-feedback').value = '';
+  document.getElementById('alert-salvo').style.display = 'none';
+  // Histórico
+  if (hist.length) {
+    document.getElementById('historico-card').style.display = 'block';
+    document.getElementById('historico-lista').innerHTML = [...hist].reverse().map(r=>`
+      <div class="hist-item">
+        <div class="hist-meta">📅 ${r.data||''}${r.hora?' · '+r.hora:''}${r.corretor?' · '+r.corretor:''}</div>
+        <div class="hist-txt">${r.texto}</div>
+      </div>`).join('');
+  } else {
+    document.getElementById('historico-card').style.display = 'none';
+  }
+}
+
+async function salvarAtendimento() {
+  if (!leadAtual) return;
+  const feedback = document.getElementById('novo-feedback').value.trim();
+  if (!feedback) { alert('Digite o feedback do atendimento.'); return; }
+  const corretorNome = document.getElementById('corretor-nome').value.trim() || leadAtual.corretor;
+  const btn = document.getElementById('btn-salvar');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+  try {
+    const now = new Date();
+    const dataHoje = now.toLocaleDateString('pt-BR');
+    const hora = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if (!leadAtual.historico) leadAtual.historico = [];
+    leadAtual.historico.push({ texto: feedback, data: dataHoje, hora, corretor: corretorNome });
+    leadAtual.feedback = feedback;
+    leadAtual.status = document.getElementById('novo-status').value;
+    leadAtual.data = dataHoje;
+    // Próximo contato
+    const proxVal = document.getElementById('novo-proximo').value;
+    if (proxVal) { const p=proxVal.split('-'); leadAtual.proximo=p[2]+'/'+p[1]+'/'+p[0]; }
+    leadAtual.qtdContatos = (leadAtual.qtdContatos||1);
+    await leadsCol.doc(String(leadAtual.id)).set(leadAtual);
+    document.getElementById('alert-salvo').style.display = 'flex';
+    document.getElementById('novo-feedback').value = '';
+    mostrarLead(leadAtual);
+    setTimeout(()=>document.getElementById('alert-salvo').style.display='none', 4000);
+  } catch(e) {
+    alert('Erro ao salvar. Verifique a conexão.');
+    console.error(e);
+  }
+  btn.disabled = false; btn.textContent = '✔ Salvar atendimento';
+}
+</script>
+</body>
+</html>
