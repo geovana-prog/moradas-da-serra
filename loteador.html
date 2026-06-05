@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Loteador — Moradas da Serra</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #7F77DD; --purple-dark: #534AB7; --purple-light: #EEEDFE;
+    --teal: #1D9E75; --teal-light: #E1F5EE;
+    --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5;
+    --amber: #EF9F27; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+    --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+    --orange: #F97316; --orange-light: #FEF3EC;
+    --gray-bg: #F5F5F5; --bg: #FFFFFF; --bg2: #F7F7F7;
+    --text: #1A1A1A; --muted: #666; --border: #E0E0E0;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #534AB7, #7F77DD); padding: 20px 24px; color: #fff; }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header .sub { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+  header .sync { font-size: 11px; opacity: 0.7; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+  .main { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .metric-value { font-size: 28px; font-weight: 700; }
+  .card { background: #fff; border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .funnel-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .funnel-label { font-size: 12px; color: var(--muted); width: 120px; flex-shrink: 0; }
+  .funnel-track { flex: 1; height: 22px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+  .funnel-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: #fff; min-width: 22px; }
+  .funnel-count { font-size: 13px; font-weight: 600; width: 28px; text-align: right; }
+  .progress-wrap { margin-bottom: 8px; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .progress-track { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--bg2); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FAFAFA; }
+  tr.row-atrasado td { background: #FEF3EC; }
+  tr.row-hoje td { background: #FFFBEA; }
+  .badge { display: inline-flex; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-novo { background: var(--blue-light); color: var(--blue-dark); }
+  .badge-contato { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-visita { background: var(--purple-light); color: var(--purple-dark); }
+  .badge-proposta { background: #EAF3DE; color: #3B6D11; }
+  .badge-fechado { background: var(--teal-light); color: var(--teal); }
+  .badge-sem { background: #F3F3F3; color: #555; }
+  .badge-interesse { background: var(--orange-light); color: #C2410C; }
+  .prazo-pill { display: inline-flex; padding: 3px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .prazo-atrasado { background: var(--red-light); color: var(--red-dark); }
+  .prazo-hoje { background: #FFFBEA; color: #92400E; border: 1px solid #FCD34D; }
+  .prazo-futuro { background: var(--teal-light); color: var(--teal); }
+  .hist-entry { padding: 8px 10px; background: var(--bg2); border-radius: var(--radius); margin-bottom: 5px; border-left: 3px solid var(--purple); }
+  .hist-meta { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .hist-txt { font-size: 13px; }
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .alert-danger { background: var(--red-light); color: var(--red-dark); border: 1px solid #F09595; }
+  .alert-warn { background: var(--amber-light); color: var(--amber-dark); border: 1px solid #FAC775; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .empty { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+  .loading { text-align: center; padding: 60px; color: var(--muted); }
+  .loading-spinner { width: 32px; height: 32px; border: 3px solid var(--purple-light); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); }
+  @media (max-width: 600px) { .metric-grid { grid-template-columns: 1fr 1fr; } .chart-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <div>
+      <h1>Moradas da Serra</h1>
+      <div class="sub">Painel de acompanhamento de leads — somente leitura</div>
+    </div>
+  </div>
+  <div class="sync" id="sync-status">🔄 Conectando ao banco de dados...</div>
+</header>
+
+<div class="main">
+  <div id="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <p>Carregando dados em tempo real...</p>
+  </div>
+  <div id="conteudo" style="display:none;"></div>
+</div>
+
+<footer>Painel somente leitura · Moradas da Serra · Trevizan Consultoria Imobiliária · Atualização em tempo real</footer>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyANrlnyfWzWw7lTOO63fhDXuhPscSiSlt8",
+  authDomain: "moradas-da-serra.firebaseapp.com",
+  projectId: "moradas-da-serra",
+  storageBucket: "moradas-da-serra.firebasestorage.app",
+  messagingSenderId: "492069160697",
+  appId: "1:492069160697:web:6d13659d6a04ab39130428"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function hoje() { return new Date().toISOString().slice(0,10); }
+function toISO(br) {
+  if (!br || br==='-') return '';
+  if (br.includes('-')) return br;
+  const p = br.split('/');
+  return p.length===3 ? p[2]+'-'+p[1]+'-'+p[0] : '';
+}
+function toBR(iso) {
+  if (!iso || iso==='-') return '-';
+  if (iso.includes('/')) return iso;
+  const p = iso.split('-');
+  return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso;
+}
+function diffDias(val) {
+  const iso = toISO(val);
+  if (!iso) return null;
+  const d = new Date(iso+'T00:00:00');
+  const h = new Date(hoje()+'T00:00:00');
+  return Math.round((d-h)/86400000);
+}
+function prazoInfo(val) {
+  const d = diffDias(val);
+  if (d===null) return null;
+  if (d<0) return { label: Math.abs(d)+'d atrasado', cls: 'prazo-atrasado', tipo: 'atrasado' };
+  if (d===0) return { label: 'Hoje!', cls: 'prazo-hoje', tipo: 'hoje' };
+  return { label: 'em '+d+'d', cls: 'prazo-futuro', tipo: 'futuro' };
+}
+function statusBadge(s) {
+  const m = {'Novo':'badge-novo','Contato feito':'badge-contato','Visita agendada':'badge-visita','Proposta enviada':'badge-proposta','Fechado':'badge-fechado','Sem interação':'badge-sem','Sem interesse':'badge-interesse'};
+  return `<span class="badge ${m[s]||'badge-sem'}">${s}</span>`;
+}
+function barBlock(label, n, total, color) {
+  const pct = total ? Math.round(n/total*100) : 0;
+  return `<div class="progress-wrap">
+    <div class="progress-row"><span>${label}</span><span style="font-weight:600">${n} <span style="color:var(--muted);font-weight:400">(${pct}%)</span></span></div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+  </div>`;
+}
+
+function renderTudo(leads) {
+  const total = leads.length;
+  const fechados = leads.filter(l=>l.status==='Fechado').length;
+  const novos = leads.filter(l=>l.status==='Novo').length;
+  const visitas = leads.filter(l=>l.status==='Visita agendada').length;
+  const conv = total ? Math.round(fechados/total*100) : 0;
+  const atrasados = leads.filter(l=>{ const d=diffDias(l.proximo); return d!==null&&d<0&&!['Fechado','Sem interação','Sem interesse'].includes(l.status); });
+  const hojeRet = leads.filter(l=>{ const d=diffDias(l.proximo); return d===0&&!['Fechado','Sem interação','Sem interesse'].includes(l.status); });
+
+  const statusList = ['Novo','Contato feito','Visita agendada','Proposta enviada','Fechado','Sem interação','Sem interesse'];
+  const funnelColors = {'Novo':'#378ADD','Contato feito':'#EF9F27','Visita agendada':'#7F77DD','Proposta enviada':'#639922','Fechado':'#1D9E75','Sem interação':'#9CA3AF','Sem interesse':'#F97316'};
+  const maxF = Math.max(...statusList.map(s=>leads.filter(l=>l.status===s).length), 1);
+
+  const oriCount = {};
+  leads.forEach(l => oriCount[l.origem||'Não informado'] = (oriCount[l.origem||'Não informado']||0)+1);
+  const corrCount = {};
+  leads.forEach(l => { if(l.corretor&&l.corretor!=='-') corrCount[l.corretor]=(corrCount[l.corretor]||0)+1; });
+
+  const pendentes = leads.filter(l=>l.proximo&&l.proximo!=='-'&&!['Fechado','Sem interesse','Sem interação'].includes(l.status))
+    .sort((a,b)=>toISO(a.proximo).localeCompare(toISO(b.proximo)));
+
+  const leadsComFb = {};
+  leads.forEach(l => {
+    const hist = l.historico&&l.historico.length ? l.historico : (l.feedback?[{texto:l.feedback,data:l.data,corretor:l.corretor}]:[]);
+    if (!hist.length) return;
+    leadsComFb[l.phone] = {nome:l.nome,phone:l.phone,status:l.status,corretor:l.corretor,hist};
+  });
+
+  const agora = new Date().toLocaleString('pt-BR');
+
+  document.getElementById('conteudo').innerHTML = `
+    ${atrasados.length ? `<div class="alert alert-danger">⚠️ <strong>${atrasados.length} lead(s)</strong> com retorno atrasado</div>` : ''}
+    ${hojeRet.length ? `<div class="alert alert-warn">🔔 <strong>${hojeRet.length} lead(s)</strong> com retorno para hoje</div>` : ''}
+
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">Total leads</div><div class="metric-value">${total}</div></div>
+      <div class="metric"><div class="metric-label">Novos</div><div class="metric-value" style="color:var(--blue-dark)">${novos}</div></div>
+      <div class="metric"><div class="metric-label">Visitas</div><div class="metric-value" style="color:var(--purple-dark)">${visitas}</div></div>
+      <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value" style="color:var(--teal)">${fechados}</div></div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">📊 Funil de vendas</div>
+        ${statusList.map(s=>{
+          const n=leads.filter(l=>l.status===s).length;
+          const pct=Math.round(n/maxF*100);
+          return `<div class="funnel-item"><div class="funnel-label">${s}</div><div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:${funnelColors[s]}">${n>0?n:''}</div></div><div class="funnel-count">${n}</div></div>`;
+        }).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title">📣 Por origem</div>
+        ${Object.entries(oriCount).sort((a,b)=>b[1]-a[1]).map(([o,n])=>barBlock(o,n,total,'#378ADD')).join('')||'<p class="empty">Sem dados</p>'}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👤 Por corretor</div>
+      ${Object.entries(corrCount).sort((a,b)=>b[1]-a[1]).map(([c,n])=>barBlock(c,n,total,'#1D9E75')).join('')||'<p class="empty">Sem dados</p>'}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔔 Retornos pendentes</div>
+      ${pendentes.length ? `<table>
+        <thead><tr><th>Nome</th><th>Status</th><th>Corretor</th><th>Próx. contato</th><th>Situação</th></tr></thead>
+        <tbody>${pendentes.map(l=>{
+          const pi=prazoInfo(l.proximo);
+          const rc=pi&&pi.tipo==='atrasado'?'row-atrasado':pi&&pi.tipo==='hoje'?'row-hoje':'';
+          return `<tr class="${rc}"><td style="font-weight:600">${l.nome}</td><td>${statusBadge(l.status)}</td><td style="font-size:12px">${l.corretor}</td><td style="font-size:12px">${toBR(l.proximo)}</td><td>${pi?`<span class="prazo-pill ${pi.cls}">${pi.label}</span>`:'-'}</td></tr>`;
+        }).join('')}</tbody>
+      </table>` : '<p class="empty">Nenhum retorno agendado</p>'}
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Histórico de atendimentos</div>
+      ${Object.values(leadsComFb).length ? Object.values(leadsComFb).map(g=>`
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <span style="font-weight:600;font-size:13px;">${g.nome}</span>
+            <span style="font-family:monospace;font-size:11px;color:var(--muted)">${g.phone}</span>
+            ${statusBadge(g.status)}
+            <span style="font-size:12px;color:var(--muted)">· ${g.corretor}</span>
+          </div>
+          ${[...g.hist].reverse().map(r=>`<div class="hist-entry"><div class="hist-meta">📅 ${r.data||''}${r.hora?' · '+r.hora:''}${r.corretor?' · '+r.corretor:''}</div><div class="hist-txt">${r.texto}</div></div>`).join('')}
+        </div>`).join('<hr class="divider">')
+      : '<p class="empty">Nenhum feedback registrado</p>'}
+    </div>
+
+    <div class="card">
+      <div class="card-title">👥 Todos os leads</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>#</th><th>Nome</th><th>Telefone</th><th>Status</th><th>Corretor</th><th>Origem</th><th>Próx. contato</th><th>Data</th></tr></thead>
+          <tbody>${leads.map((l,i)=>{
+            const pi=l.proximo&&l.proximo!=='-'?prazoInfo(l.proximo):null;
+            return `<tr><td style="color:var(--muted);font-size:12px">${i+1}</td><td style="font-weight:600">${l.nome}</td><td style="font-family:monospace;font-size:12px">${l.phone}</td><td>${statusBadge(l.status)}</td><td style="font-size:12px">${l.corretor}</td><td style="font-size:12px">${l.origem||'-'}</td><td>${pi?`<span class="prazo-pill ${pi.cls}">${pi.label}</span>`:'-'}</td><td style="font-size:12px;white-space:nowrap">${l.data}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:8px;font-size:11px;color:var(--muted);">Última atualização: ${agora}</div>
+  `;
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('conteudo').style.display = 'block';
+  document.getElementById('sync-status').textContent = `🟢 Ao vivo · ${total} leads · Atualizado agora`;
+}
+
+// Listener em tempo real
+db.collection('leads').orderBy('ts', 'desc').onSnapshot(snapshot => {
+  const leads = snapshot.docs.map(d => d.data());
+  renderTudo(leads);
+}, err => {
+  document.getElementById('sync-status').textContent = '🔴 Erro de conexão';
+  document.getElementById('loading').innerHTML = '<p style="color:var(--red-dark)">❌ Erro ao carregar dados. Verifique a conexão.</p>';
+});
+</script>
+</body>
+</html>
