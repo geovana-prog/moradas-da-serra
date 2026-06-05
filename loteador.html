@@ -73,6 +73,12 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); }
   @media (max-width: 600px) { .metric-grid { grid-template-columns: 1fr 1fr; } .chart-grid { grid-template-columns: 1fr; } }
+  .btn-bar { display: flex; gap: 10px; justify-content: center; padding: 16px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text); }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .btn-primary:hover { background: var(--purple-dark); }
+  @media print { .btn-bar, header .sync, footer { display: none !important; } .card { box-shadow: none; } }
 </style>
 </head>
 <body>
@@ -98,6 +104,10 @@
   <div id="conteudo" style="display:none;"></div>
 </div>
 
+<div class="btn-bar" id="btn-bar" style="display:none;">
+  <button class="btn btn-primary" onclick="exportExcelLoteador()">📊 Exportar Excel</button>
+  <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+</div>
 <footer>Painel somente leitura · Moradas da Serra · Trevizan Consultoria Imobiliária · Atualização em tempo real</footer>
 
 <script>
@@ -263,11 +273,84 @@ function renderTudo(leads) {
 // Listener em tempo real
 db.collection('leads').orderBy('ts', 'desc').onSnapshot(snapshot => {
   const leads = snapshot.docs.map(d => d.data());
-  renderTudo(leads);
+  renderTudoWrapper(leads);
 }, err => {
   document.getElementById('sync-status').textContent = '🔴 Erro de conexão';
   document.getElementById('loading').innerHTML = '<p style="color:var(--red-dark)">❌ Erro ao carregar dados. Verifique a conexão.</p>';
 });
+
+let _leadsCache = [];
+
+function renderTudoWrapper(leads) {
+  _leadsCache = leads;
+  renderTudo(leads);
+  document.getElementById('btn-bar').style.display = 'flex';
+}
+
+function exportExcelLoteador() {
+  if (!_leadsCache.length) { alert('Nenhum dado para exportar.'); return; }
+  if (!window.XLSX) { alert('Aguarde carregar a biblioteca e tente novamente.'); return; }
+  const leads = _leadsCache;
+  const wb = XLSX.utils.book_new();
+  const total = leads.length;
+  const hoje2 = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+  // Resumo
+  const statusList = ['Novo','Contato feito','Visita agendada','Proposta enviada','Fechado','Sem interação','Sem interesse'];
+  const oriCount = {}; leads.forEach(l=>oriCount[l.origem||'Não informado']=(oriCount[l.origem||'Não informado']||0)+1);
+  const corrCount = {}; leads.forEach(l=>{if(l.corretor&&l.corretor!=='-')corrCount[l.corretor]=(corrCount[l.corretor]||0)+1;});
+  const resumo = [
+    ['RELATÓRIO DE LEADS — MORADAS DA SERRA'],
+    ['Trevizan Consultoria Imobiliária'],
+    ['Gerado em: '+hoje2],
+    [],
+    ['RESUMO GERAL'],
+    ['Total de leads', total],
+    ['Fechamentos', leads.filter(l=>l.status==='Fechado').length],
+    ['Taxa de conversão', total?Math.round(leads.filter(l=>l.status==='Fechado').length/total*100)+'%':'0%'],
+    [],
+    ['FUNIL DE VENDAS'],['Status','Leads','%'],
+  ];
+  statusList.forEach(s=>{const n=leads.filter(l=>l.status===s).length;resumo.push([s,n,total?Math.round(n/total*100)+'%':'0%']);});
+  resumo.push([],['POR ORIGEM'],['Origem','Leads','%']);
+  Object.entries(oriCount).sort((a,b)=>b[1]-a[1]).forEach(([o,n])=>resumo.push([o,n,total?Math.round(n/total*100)+'%':'0%']));
+  resumo.push([],['POR CORRETOR'],['Corretor','Leads','%']);
+  Object.entries(corrCount).sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>resumo.push([c,n,total?Math.round(n/total*100)+'%':'0%']));
+  const wsR = XLSX.utils.aoa_to_sheet(resumo);
+  wsR['!cols']=[{wch:32},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsR, '📊 Resumo');
+
+  // Todos os leads
+  const h2 = ['#','Nome','Telefone','Status','Corretor','Origem','Orçamento','Data contato','Próximo retorno'];
+  const r2 = leads.map((l,i)=>[i+1,l.nome,l.phone,l.status,l.corretor,l.origem||'-',l.orcamento||'-',l.data,l.proximo||'-']);
+  const wsL = XLSX.utils.aoa_to_sheet([h2,...r2]);
+  wsL['!cols']=[{wch:4},{wch:26},{wch:16},{wch:16},{wch:16},{wch:14},{wch:16},{wch:14},{wch:16}];
+  wsL['!autofilter']={ref:'A1:'+XLSX.utils.encode_col(h2.length-1)+'1'};
+  XLSX.utils.book_append_sheet(wb, wsL, '👥 Todos os Leads');
+
+  // Retornos
+  const pend = leads.filter(l=>l.proximo&&l.proximo!=='-'&&!['Fechado','Sem interesse','Sem interação'].includes(l.status)).sort((a,b)=>toISO(a.proximo).localeCompare(toISO(b.proximo)));
+  const h3 = ['Nome','Telefone','Status','Corretor','Próximo contato'];
+  const r3 = pend.map(l=>[l.nome,l.phone,l.status,l.corretor,toBR(l.proximo)]);
+  const wsRet = XLSX.utils.aoa_to_sheet([h3,...r3]);
+  wsRet['!cols']=[{wch:26},{wch:16},{wch:16},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsRet, '🔔 Retornos');
+
+  // Histórico
+  const h4 = ['Nome','Telefone','Status','Corretor','Data','Feedback'];
+  const r4 = [];
+  leads.forEach(l=>{
+    const hist=l.historico&&l.historico.length?l.historico:(l.feedback?[{texto:l.feedback,data:l.data,corretor:l.corretor}]:[]);
+    hist.forEach(h=>r4.push([l.nome,l.phone,l.status,h.corretor||l.corretor,h.data||l.data,h.texto||'']));
+  });
+  if(r4.length){
+    const wsF=XLSX.utils.aoa_to_sheet([h4,...r4]);
+    wsF['!cols']=[{wch:26},{wch:16},{wch:16},{wch:16},{wch:14},{wch:55}];
+    XLSX.utils.book_append_sheet(wb,wsF,'📋 Histórico');
+  }
+
+  XLSX.writeFile(wb,'relatorio_moradas_da_serra_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
 </script>
 </body>
 </html>
