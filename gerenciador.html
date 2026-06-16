@@ -403,6 +403,7 @@
         <button class="btn" style="font-size:12px;padding:7px 12px;" onclick="exportCSV()">⬇ Exportar CSV</button>
         <button class="btn" style="font-size:12px;padding:7px 12px;color:var(--text-muted);" onclick="atualizarSemInteracao()">🔄 Atualizar "não responde"</button>
         <button class="btn" style="font-size:12px;padding:7px 12px;color:var(--orange);" onclick="migrarPerdidoParaSemInteresse()">🔄 Migrar "Perdido"</button>
+        <button class="btn" style="font-size:12px;padding:7px 12px;color:var(--red-dark);" onclick="limparRetornosVencidos()">🗓 Limpar retornos vencidos</button>
       </div>
       <div id="subtab-ativos" class="subtab-section active"><div id="leads-table-ativos"></div></div>
       <div id="subtab-fechados" class="subtab-section"><div id="leads-table-fechados"></div></div>
@@ -1094,6 +1095,25 @@ function renderLeads() {
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
+}
+
+function limparRetornosVencidos() {
+  const ATIVOS_STATUS = [...STATUS_ATIVOS];
+  const vencidos = leads.filter(l => {
+    if (!l.proximo || l.proximo === '-') return false;
+    const d = diffDias(l.proximo);
+    return d !== null && d < 0;
+  });
+  if (!vencidos.length) { alert('Nenhum retorno vencido encontrado.'); return; }
+  if (!confirm(vencidos.length + ' lead(s) com retorno vencido. Limpar as datas?')) return;
+  vencidos.forEach(l => {
+    l.proximo = '-';
+    saveLeadFirestore(l);
+  });
+  saveAll();
+  renderLeads();
+  if (document.getElementById('tab-kanban').classList.contains('active')) renderKanban();
+  alert('✅ ' + vencidos.length + ' data(s) de retorno limpas!');
 }
 
 function migrarPerdidoParaSemInteresse() {
