@@ -188,6 +188,7 @@
   <h1>Gerenciador de Leads</h1>
   <span class="version">Moradas da Serra</span>
   <span id="sync-status" style="font-size:11px;color:var(--text-muted);margin-left:8px;">🔄 Conectando...</span>
+  <button id="btn-importar" onclick="importarLocalParaFirebase()" style="display:none;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #EF9F27;background:#FAEEDA;color:#854F0B;cursor:pointer;margin-left:8px;">⬆ Importar dados locais</button>
 </header>
 
 
@@ -983,9 +984,9 @@ function onDrop(event, novoStatus) {
   saveLeadFirestore(l);
   renderKanban();
   // update leads tab counts
-  const ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
-  const fechados = leads.filter(l => STATUS_FECHADOS.includes(l.status));
-  const invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
+  const _ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
+  const _fechados2 = leads.filter(l => STATUS_FECHADOS.includes(l.status));
+  const _invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
   const ca = document.getElementById('count-ativos');
   const cf = document.getElementById('count-fechados');
   const ci = document.getElementById('count-invalidados');
@@ -1022,18 +1023,18 @@ function renderLeads() {
   const fp = document.getElementById('filtro-prazo').value;
 
   // Update subtab counts
-  const ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
-  const fechados = leads.filter(l => STATUS_FECHADOS.includes(l.status));
-  const invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
-  document.getElementById('count-ativos').textContent = ativos.length;
-  document.getElementById('count-fechados').textContent = fechados.length;
-  document.getElementById('count-invalidados').textContent = invalidados.length;
+  const _ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
+  const _fechados2 = leads.filter(l => STATUS_FECHADOS.includes(l.status));
+  const _invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
+  document.getElementById('count-ativos').textContent = _ativos.length;
+  document.getElementById('count-fechados').textContent = _fechados2.length;
+  document.getElementById('count-invalidados').textContent = _invalidados.length;
 
   // Filter based on current subtab
   let pool;
-  if (currentSubTab === 'ativos') pool = ativos;
-  else if (currentSubTab === 'fechados') pool = fechados;
-  else pool = invalidados;
+  if (currentSubTab === 'ativos') pool = _ativos;
+  else if (currentSubTab === 'fechados') pool = _fechados2;
+  else pool = _invalidados;
 
   const fs = ''; // no status filter needed since subtab handles it
 
@@ -1154,7 +1155,7 @@ function barBlock(label, n, total, color) {
 
 function renderReport() {
   document.getElementById('report-date').textContent = 'Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const total=leads.length, fechados=leads.filter(l=>l.status==='Fechado').length,
+  const total=leads.length, fechados=leads.filter(l=>l.status==='Venda Ganha'||l.status==='Fechado').length,
     perdidos=leads.filter(l=>l.status==='Sem interesse'||l.status==='Sem interação').length,
     conv=total?Math.round(fechados/total*100):0,
     atrasados=leads.filter(l=>l.proximo&&diffDias(l.proximo)<0&&l.status!=='Fechado'&&l.status!=='Perdido').length;
@@ -1338,14 +1339,29 @@ function popularSelectCorretores() {
 
 popularSelectCorretores();
 renderLeads();
+async function importarLocalParaFirebase() {
+  const localData = localStorage.getItem('waleads_v4');
+  if (!localData) { alert('Nenhum dado local encontrado.'); return; }
+  const localLeads = JSON.parse(localData);
+  if (!localLeads.length) { alert('Nenhum lead para importar.'); return; }
+  if (!confirm('Importar ' + localLeads.length + ' leads do computador para o Firebase?')) return;
+  try {
+    setSyncStatus('syncing');
+    const batch = db.batch();
+    localLeads.forEach(l => batch.set(leadsCol.doc(String(l.id)), l));
+    await batch.commit();
+    setSyncStatus('ok');
+    document.getElementById('btn-importar').style.display = 'none';
+    alert('✅ ' + localLeads.length + ' leads importados!');
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
 // Inicia listener do Firestore e faz sync inicial
 setTimeout(async () => {
   try {
     const snap = await leadsCol.limit(1).get();
     if (snap.empty && leads.length > 0) {
-      // Firestore vazio mas tem dados locais — migra
-      console.log('Firestore vazio, migrando dados locais...');
-      await syncAllToFirestore();
+      document.getElementById('btn-importar').style.display = 'inline-block';
     }
     iniciarListenerFirestore();
   } catch(e) {
