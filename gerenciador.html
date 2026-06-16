@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerenciador de Leads WhatsApp — Loteamento</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #7F77DD; --purple-dark: #534AB7; --purple-light: #EEEDFE;
+    --teal: #1D9E75; --teal-light: #E1F5EE;
+    --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5;
+    --amber: #EF9F27; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+    --green: #639922; --green-light: #EAF3DE;
+    --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+    --orange: #F97316; --orange-light: #FEF3EC;
+    --gray-bg: #F5F5F5; --bg: #FFFFFF; --bg-secondary: #F7F7F7;
+    --text: #1A1A1A; --text-muted: #666666; --border: #E0E0E0;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  header { background: #fff; border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  header .logo { width: 32px; height: 32px; background: #25D366; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  header .logo svg { width: 18px; height: 18px; fill: #fff; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .version { font-size: 11px; color: var(--text-muted); background: var(--bg-secondary); padding: 2px 8px; border-radius: 100px; border: 1px solid var(--border); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .tabs { display: flex; gap: 2px; background: #fff; border-radius: var(--radius-lg); padding: 4px; border: 1px solid var(--border); margin-bottom: 20px; width: fit-content; }
+  .tab { padding: 8px 20px; border-radius: var(--radius); border: none; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .tab:hover { background: var(--bg-secondary); color: var(--text); }
+  .tab.active { background: var(--purple); color: #fff; }
+  .section { display: none; } .section.active { display: block; }
+  .card { background: #fff; border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+  .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .metric-value { font-size: 28px; font-weight: 700; }
+  .metric-value.blue { color: var(--blue-dark); } .metric-value.purple { color: var(--purple-dark); }
+  .metric-value.green { color: var(--teal); } .metric-value.red { color: var(--red-dark); }
+  .metric-value.orange { color: var(--orange); }
+  .subtabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .subtab { padding: 7px 16px; border-radius: var(--radius) var(--radius) 0 0; border: none; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .subtab:hover { color: var(--text); background: var(--bg-secondary); }
+  .subtab.active { color: var(--purple-dark); border-bottom-color: var(--purple); font-weight: 600; }
+  .subtab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 100px; font-size: 10px; font-weight: 700; padding: 0 5px; margin-left: 5px; background: var(--bg-secondary); color: var(--text-muted); }
+  .subtab.active .subtab-count { background: var(--purple-light); color: var(--purple-dark); }
+  .subtab-section { display: none; }
+  .subtab-section.active { display: block; }
+  tr.row-invalidado td { opacity: 0.5; background: #FAFAFA !important; }
+  tr.row-invalidado:hover td { opacity: 0.7; }
+  .metric-value.orange { color: var(--orange); }
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .alert-info { background: var(--purple-light); color: var(--purple-dark); border: 1px solid #AFA9EC; }
+  .alert-success { background: var(--teal-light); color: var(--teal); border: 1px solid #5DCAA5; }
+  .alert-warn { background: var(--amber-light); color: var(--amber-dark); border: 1px solid #FAC775; }
+  .alert-danger { background: var(--red-light); color: var(--red-dark); border: 1px solid #F09595; }
+  .input-group { margin-bottom: 12px; }
+  .input-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px; }
+  .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--text); background: #fff; transition: border 0.15s; font-family: inherit; }
+  .input-group input:focus, .input-group select:focus, .input-group textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(127,119,221,0.12); }
+  .input-group textarea { resize: vertical; min-height: 60px; }
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; } .row-3 { grid-template-columns: 1fr 1fr 1fr; } .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .btn-primary:hover { background: var(--purple-dark); }
+  .btn-edit { color: var(--blue-dark); border-color: #B5D4F4; }
+  .btn-edit:hover { background: var(--blue-light); }
+  .btn-danger { color: var(--red-dark); border-color: #F09595; }
+  .btn-danger:hover { background: var(--red-light); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .extract-box { background: var(--gray-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin: 14px 0; }
+  .extracted-number { font-size: 26px; font-weight: 700; color: var(--purple-dark); letter-spacing: 1px; margin: 6px 0 2px; }
+  .extracted-raw { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+  .whatsapp-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 14px; background: #25D366; color: #fff; border-radius: 100px; font-size: 12px; text-decoration: none; font-weight: 500; }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input, .filter-bar select { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; color: var(--text); background: #fff; }
+  .filter-bar input { flex: 1; min-width: 160px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #FAFAFA; }
+  tr.row-atrasado td { background: #FEF3EC !important; }
+  tr.row-atrasado:hover td { background: #FDEBD8 !important; }
+  tr.row-hoje td { background: #FFFBEA !important; }
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-novo { background: var(--blue-light); color: var(--blue-dark); }
+  .badge-contato { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-visita { background: var(--purple-light); color: var(--purple-dark); }
+  .badge-proposta { background: var(--green-light); color: var(--green); }
+  .badge-fechado { background: var(--teal-light); color: var(--teal); }
+  .badge-perdido { background: var(--red-light); color: var(--red-dark); }
+  .badge-sem { background: #F3F3F3; color: #555; border: 1px solid #CCC; }
+  .badge-sem-interesse { background: #FEF3EC; color: #C2410C; border: 1px solid #FDBA74; }
+  .badge-atrasado { background: var(--red-light); color: var(--red-dark); }
+  .badge-hoje { background: #FFFBEA; color: #92400E; border: 1px solid #FCD34D; }
+  .badge-futuro { background: var(--teal-light); color: var(--teal); }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .funnel-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .funnel-label { font-size: 12px; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+  .funnel-track { flex: 1; height: 24px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+  .funnel-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: #fff; min-width: 24px; }
+  .funnel-count { font-size: 13px; font-weight: 600; width: 28px; text-align: right; }
+  .section-subtitle { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .progress-wrap { margin-bottom: 8px; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .progress-track { height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--purple); border-radius: 4px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .report-header { border-left: 4px solid var(--purple); padding-left: 12px; margin-bottom: 16px; }
+  .report-title { font-size: 18px; font-weight: 700; }
+  .report-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  select.status-inline { border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; background: #fff; color: var(--text); cursor: pointer; }
+  .prazo-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .prazo-atrasado { background: var(--red-light); color: var(--red-dark); }
+  .prazo-hoje { background: #FFFBEA; color: #92400E; border: 1px solid #FCD34D; }
+  .prazo-futuro { background: var(--teal-light); color: var(--teal); }
+  .prazo-vazio { background: var(--bg-secondary); color: var(--text-muted); }
+  /* Alerta sem feedback */
+  .sem-feedback-row td { border-left: 3px solid var(--amber); }
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: var(--radius-lg); padding: 24px; width: 90%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .modal-title button { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 22px; line-height: 1; }
+  footer { text-align: center; padding: 20px; font-size: 11px; color: var(--text-muted); }
+  @media print {
+    header, .tabs, .filter-bar, .btn, footer { display: none !important; }
+    .report-table-section table { table-layout: fixed; width: 100%; font-size: 11px; }
+    .report-table-section th, .report-table-section td { word-break: break-word; padding: 6px 8px; }
+    .report-table-section th:nth-child(1) { width: 4%; }
+    .report-table-section th:nth-child(2) { width: 14%; }
+    .report-table-section th:nth-child(3) { width: 13%; }
+    .report-table-section th:nth-child(4) { width: 12%; }
+    .report-table-section th:nth-child(5) { width: 11%; }
+    .report-table-section th:nth-child(6) { width: 10%; }
+    .report-table-section th:nth-child(7) { width: 13%; }
+    .report-table-section th:nth-child(8) { width: 10%; }
+    .card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 12px; }
+    .section { display: block !important; }
+    #tab-extrair, #tab-leads { display: none !important; }
+    .page-break { page-break-before: always; }
+    .report-table-section { page-break-before: always; }
+    body { background: #fff; }
+  }
+  /* Kanban */
+  .kanban-wrap { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px; align-items: flex-start; }
+  .kanban-col { flex-shrink: 0; width: 220px; background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 10px; min-height: 200px; }
+  .kanban-col-header { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: var(--radius); }
+  .kanban-col-count { font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.1); color: #fff; padding: 2px 7px; border-radius: 100px; }
+  .kanban-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); padding: 10px; margin-bottom: 8px; cursor: grab; transition: box-shadow 0.15s, transform 0.15s; }
+  .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-1px); }
+  .kanban-card.dragging { opacity: 0.5; cursor: grabbing; }
+  .kanban-col.drag-over { background: var(--purple-light); border: 2px dashed var(--purple); }
+  .kanban-card-nome { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kanban-card-phone { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-bottom: 4px; }
+  .kanban-card-corretor { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .kanban-card-fb { font-size: 11px; color: var(--text-muted); background: var(--bg-secondary); border-radius: 4px; padding: 4px 6px; margin-top: 6px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+  .kanban-card-data { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+  .kanban-card-actions { display: flex; gap: 4px; margin-top: 6px; }
+  .kanban-card-btn { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: #fff; font-size: 11px; cursor: pointer; color: var(--text-muted); }
+  .kanban-card-btn:hover { background: var(--bg-secondary); }
+  .kanban-empty { text-align: center; padding: 20px 8px; font-size: 12px; color: var(--text-muted); opacity: 0.6; }
+  .kanban-perdido-col { opacity: 0.6; }
+
+  @media (max-width: 700px) {
+    .metric-grid { grid-template-columns: 1fr 1fr; }
+    .row-3, .row-4 { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .row-2 { grid-template-columns: 1fr; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </div>
+  <h1>Gerenciador de Leads</h1>
+  <span class="version">Moradas da Serra</span>
+  <span id="sync-status" style="font-size:11px;color:var(--text-muted);margin-left:8px;">🔄 Conectando...</span>
+</header>
+
+
+<!-- MODAL ENVIO LEAD -->
+<div class="modal-overlay" id="modal-envio" onclick="if(event.target===this)closeModalEnvio()">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">
+      <span>📲 Enviar lead para corretor(es)</span>
+      <button onclick="closeModalEnvio()">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Selecione quem vai receber este lead:</div>
+    <div id="modal-envio-checks" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModalEnvio()">Cancelar</button>
+      <button class="btn" style="background:#25D366;color:#fff;border-color:#25D366;" onclick="confirmarEnvioLead()">📲 Enviar selecionados</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span>✏️ Editar lead</span>
+      <button onclick="closeModalDirect()">×</button>
+    </div>
+    <div class="row row-2">
+      <div class="input-group"><label>Nome</label><input type="text" id="edit-nome"></div>
+      <div class="input-group"><label>Telefone</label><input type="text" id="edit-phone" readonly style="background:var(--bg-secondary);color:var(--text-muted)"></div>
+    </div>
+    <div class="row row-3">
+      <div class="input-group"><label>Origem</label>
+        <select id="edit-origem">
+          <option>WhatsApp</option><option>Instagram</option><option>Facebook</option>
+          <option>Indicação</option><option>Site</option><option>Outdoor</option><option>Google Ads</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Empreendimento</label>
+        <select id="edit-emp">
+          <option value="">Selecionar...</option>
+          <option>Moradas da Serra</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Status</label>
+        <select id="edit-status">
+          <option>Qualificação</option>
+          <option>Follow 1</option><option>Follow 2</option><option>Follow 3</option>
+          <option>Atendimento Consultor</option><option>Agendamento Visita</option>
+          <option>Visita ao Plantão</option><option>Proposta Apresentada</option>
+          <option>Negociação/Decisão</option><option>Venda Ganha</option>
+          <option>Sem interação</option><option>Sem interesse</option>
+        </select>
+      </div>
+    </div>
+    <div class="row row-3">
+      <div class="input-group"><label>Corretor</label><input type="text" id="edit-corretor"></div>
+      <div class="input-group"><label>Tamanho desejado</label>
+        <select id="edit-tamanho">
+          <option value="">Não informado</option>
+          <option>Até 200m²</option><option>200 a 300m²</option><option>300 a 500m²</option><option>Acima de 500m²</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Orçamento</label>
+        <select id="edit-orcamento">
+          <option value="">Não informado</option>
+          <option>Até R$ 50k</option><option>R$ 50k – R$ 100k</option><option>R$ 100k – R$ 200k</option><option>Acima de R$ 200k</option>
+        </select>
+      </div>
+    </div>
+    <div class="row row-2">
+      <div class="input-group"><label>📅 Data do contato</label><input type="date" id="edit-data"></div>
+      <div class="input-group"><label>🔔 Próximo contato (retorno)</label><input type="date" id="edit-proximo"></div>
+    </div>
+    <div class="input-group"><label>Observação</label><textarea id="edit-obs"></textarea></div>
+    <div class="input-group">
+      <label>📋 Novo registro de atendimento</label>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <textarea id="edit-feedback" placeholder="Descreva o que foi conversado neste contato..." style="flex:1;min-height:60px;"></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:2px;white-space:nowrap;flex-shrink:0;" onclick="adicionarRegistro()">➕ Adicionar</button>
+      </div>
+    </div>
+    <div id="historico-lista" style="margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+      <button class="btn" onclick="closeModalDirect()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEdit()">✔ Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('extrair')">⬇ Extrair contato</button>
+    <button class="tab" onclick="switchTab('leads')">👥 Leads</button>
+    <button class="tab" onclick="switchTab('relatorio')">📊 Relatório</button>
+    <button class="tab" onclick="switchTab('kanban')">📋 Kanban</button>
+    <button class="tab" onclick="switchTab('corretores')">👤 Corretores</button>
+  </div>
+
+  <!-- EXTRAIR -->
+  <div id="tab-extrair" class="section active">
+    <div class="card">
+      <div class="card-title">Cole o link ou número do WhatsApp</div>
+      <div class="alert alert-info">
+        Aceita: <strong>wa.me/5519...</strong> &nbsp;·&nbsp; <strong>api.whatsapp.com/send?phone=...</strong> &nbsp;·&nbsp; número direto <strong>(19) 99999-9999</strong>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="wainput" placeholder="Cole o link wa.me/... ou digite o número..." style="flex:1;padding:12px 14px;border:2px solid var(--border);border-radius:var(--radius-lg);font-size:15px;font-family:inherit;color:var(--text);transition:border 0.15s;" oninput="extractPhone()" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <button class="btn" onclick="clearInput()" style="padding:12px 14px;">✕</button>
+      </div>
+      <div id="preview-area" style="display:none;">
+        <div class="extract-box" style="margin-top:14px;">
+          <div style="font-size:12px;color:var(--text-muted);font-weight:500;">✅ Número extraído com sucesso</div>
+          <div class="extracted-number" id="phone-formatted"></div>
+          <div class="extracted-raw" id="phone-raw"></div>
+          <a id="wa-link" href="#" class="whatsapp-btn" target="_blank">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Abrir conversa
+          </a>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+        <div id="aviso-duplicado" class="alert alert-warn" style="display:none;margin-bottom:12px;"></div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Dados do lead</div>
+        <div class="row row-3">
+          <div class="input-group"><label>Nome completo</label><input type="text" id="new-nome" placeholder="Nome do interessado"></div>
+          <div class="input-group"><label>Origem</label>
+            <select id="new-origem">
+              <option>WhatsApp</option><option>Instagram</option><option>Facebook</option>
+              <option>Indicação</option><option>Site</option><option>Outdoor</option><option>Google Ads</option>
+            </select>
+          </div>
+          <div class="input-group"><label>Empreendimento</label>
+            <select id="new-emp">
+              <option value="">Selecionar...</option>
+              <option>Moradas da Serra</option>
+            </select>
+          </div>
+        </div>
+        <div class="row row-4">
+          <div class="input-group"><label>Status</label>
+            <select id="new-status">
+              <option>Qualificação</option>
+              <option>Follow 1</option><option>Follow 2</option><option>Follow 3</option>
+              <option>Atendimento Consultor</option><option>Agendamento Visita</option>
+              <option>Visita ao Plantão</option><option>Proposta Apresentada</option>
+              <option>Negociação/Decisão</option><option>Venda Ganha</option>
+              <option>Sem interação</option><option>Sem interesse</option>
+            </select>
+          </div>
+          <div class="input-group"><label>Corretor</label>
+            <div style="display:flex;gap:6px;">
+              <select id="new-corretor" style="flex:1;">
+                <option value="">🔄 Automático</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-group"><label>Tamanho desejado</label>
+            <select id="new-tamanho">
+              <option value="">Não informado</option>
+              <option>Até 200m²</option><option>200 a 300m²</option><option>300 a 500m²</option><option>Acima de 500m²</option>
+            </select>
+          </div>
+          <div class="input-group"><label>Orçamento</label>
+            <select id="new-orcamento">
+              <option value="">Não informado</option>
+              <option>Até R$ 50k</option><option>R$ 50k – R$ 100k</option><option>R$ 100k – R$ 200k</option><option>Acima de R$ 200k</option>
+            </select>
+          </div>
+        </div>
+        <div class="row row-2">
+          <div class="input-group"><label>📅 Data do contato</label><input type="date" id="new-data"></div>
+          <div class="input-group"><label>🔔 Próximo contato (retorno)</label><input type="date" id="new-proximo"></div>
+        </div>
+        <div class="input-group"><label>Observação</label><textarea id="new-obs" placeholder="Ex: Quer lote de esquina, prefere pagar à vista..."></textarea></div>
+        <div class="input-group">
+          <label>📋 Feedback do atendimento</label>
+          <textarea id="new-feedback" placeholder="Ex: Cliente demonstrou interesse, pediu prazo para decidir..."></textarea>
+        </div>
+        <div id="envio-corretores" style="margin-bottom:12px;display:none;">
+          <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:8px;">📲 Selecione os corretores para enviar:</div>
+          <div id="checkboxes-corretores" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveLead(false)">➕ Salvar lead</button>
+          <button class="btn" style="background:#25D366;color:#fff;border-color:#25D366;" onclick="toggleEnvio()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Enviar para corretores
+          </button>
+          <div id="save-alert" class="alert alert-success" style="display:none;padding:8px 14px;margin:0;">✔ Lead salvo!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADS -->
+  <div id="tab-leads" class="section">
+    <div id="alertas-container"></div>
+    <div class="metric-grid" id="metrics"></div>
+    <div class="card">
+      <div class="subtabs">
+        <button class="subtab active" onclick="switchSubTab('ativos')">🟢 Ativos <span class="subtab-count" id="count-ativos">0</span></button>
+        <button class="subtab" onclick="switchSubTab('fechados')">✅ Fechados <span class="subtab-count" id="count-fechados">0</span></button>
+        <button class="subtab" onclick="switchSubTab('invalidados')">🚫 Invalidados <span class="subtab-count" id="count-invalidados">0</span></button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="busca" placeholder="🔍  Buscar nome, telefone, corretor..." oninput="renderLeads()">
+        <select id="filtro-prazo" onchange="renderLeads()">
+          <option value="">Todos os prazos</option>
+          <option value="atrasado">⚠ Retorno atrasado</option>
+          <option value="hoje">🔔 Retorno hoje</option>
+          <option value="sem_feedback">📋 Sem feedback</option>
+        </select>
+        <button class="btn" style="font-size:12px;padding:7px 12px;" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <button class="btn" style="font-size:12px;padding:7px 12px;color:var(--text-muted);" onclick="atualizarSemInteracao()">🔄 Atualizar "não responde"</button>
+        <button class="btn" style="font-size:12px;padding:7px 12px;color:var(--orange);" onclick="migrarPerdidoParaSemInteresse()">🔄 Migrar "Perdido"</button>
+      </div>
+      <div id="subtab-ativos" class="subtab-section active"><div id="leads-table-ativos"></div></div>
+      <div id="subtab-fechados" class="subtab-section"><div id="leads-table-fechados"></div></div>
+      <div id="subtab-invalidados" class="subtab-section"><div id="leads-table-invalidados"></div></div>
+    </div>
+  </div>
+
+  
+  <!-- KANBAN -->
+  <div id="tab-kanban" class="section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:13px;color:var(--text-muted);">Arraste os leads entre as colunas para atualizar o status</div>
+      <div style="display:flex;gap:8px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+          <input type="checkbox" id="kanban-show-invalidados" onchange="renderKanban()"> Mostrar invalidados
+        </label>
+      </div>
+    </div>
+    <div class="kanban-wrap" id="kanban-board"></div>
+  </div>
+
+  <!-- CORRETORES -->
+  <div id="tab-corretores" class="section">
+    <div class="card">
+      <div class="card-title">👤 Cadastro de corretores</div>
+      <div class="row row-3" style="margin-bottom:12px;">
+        <div class="input-group"><label>Nome</label><input type="text" id="cor-nome" placeholder="Nome do corretor"></div>
+        <div class="input-group"><label>WhatsApp (com DDD)</label><input type="text" id="cor-fone" placeholder="(15) 99999-9999"></div>
+        <div class="input-group" style="display:flex;flex-direction:column;justify-content:flex-end;">
+          <label style="opacity:0">.</label>
+          <button class="btn btn-primary" onclick="adicionarCorretor()">➕ Adicionar corretor</button>
+        </div>
+      </div>
+      <div id="corretores-lista"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 Próximo da fila (distribuição automática)</div>
+      <div id="proximo-fila" style="font-size:14px;color:var(--text-muted);">Nenhum corretor cadastrado.</div>
+    </div>
+  </div>
+
+  <!-- RELATÓRIO -->
+  <div id="tab-relatorio" class="section">
+    <div class="card">
+      <div class="report-header">
+        <div class="report-title">Relatório de Leads — Moradas da Serra</div>
+        <div class="report-sub" id="report-date"></div>
+      </div>
+      <div class="metric-grid" id="report-metrics"></div>
+      <div class="chart-grid">
+        <div>
+          <div class="section-subtitle">Funil de vendas</div>
+          <div id="funnel"></div>
+        </div>
+        <div>
+          <div class="section-subtitle">Por origem</div>
+          <div id="por-origem"></div>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="section-subtitle">Por corretor</div>
+      <div id="por-corretor" style="margin-bottom:16px;"></div>
+      <hr class="divider">
+      <div class="section-subtitle">🔔 Retornos pendentes</div>
+      <div id="retornos-pendentes" style="margin-bottom:16px;"></div>
+      <hr class="divider">
+      <div class="section-subtitle">📋 Feedback dos atendimentos</div>
+      <div id="feedbacks" style="margin-bottom:16px;"></div>
+      <div class="report-table-section">
+      <hr class="divider">
+      <div class="section-subtitle">Todos os leads</div>
+      <div id="report-table" style="overflow-x:auto;margin-bottom:16px;"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="exportExcel()">📊 Exportar Excel para loteador</button>
+        <button class="btn" style="background:#534AB7;color:#fff;border-color:#534AB7;" onclick="gerarPainelLoteador()">📱 Gerar painel do loteador</button>
+        <button class="btn" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Gerenciador de Leads · Dados salvos localmente no navegador · Nenhuma informação enviada para servidores</footer>
+
+<script>
+// ── Firebase config ──────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyANrlnyfWzWw7lTOO63fhDXuhPscSiSlt8",
+  authDomain: "moradas-da-serra.firebaseapp.com",
+  projectId: "moradas-da-serra",
+  storageBucket: "moradas-da-serra.firebasestorage.app",
+  messagingSenderId: "492069160697",
+  appId: "1:492069160697:web:6d13659d6a04ab39130428"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const leadsCol = db.collection('leads');
+let firestoreEnabled = true;
+
+// Indicador de sync
+function setSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (status === 'ok') { el.textContent = '🟢 Sincronizado'; el.style.color = 'var(--teal)'; }
+  else if (status === 'syncing') { el.textContent = '🔄 Sincronizando...'; el.style.color = 'var(--amber)'; }
+  else { el.textContent = '🔴 Sem conexão'; el.style.color = 'var(--red)'; }
+}
+
+// Salvar lead no Firestore
+async function saveLeadFirestore(lead) {
+  if (!firestoreEnabled) return;
+  try {
+    setSyncStatus('syncing');
+    await leadsCol.doc(String(lead.id)).set(lead);
+    setSyncStatus('ok');
+  } catch(e) {
+    console.error('Firestore save error:', e);
+    setSyncStatus('error');
+  }
+}
+
+// Deletar lead do Firestore
+async function deleteLeadFirestore(id) {
+  if (!firestoreEnabled) return;
+  try {
+    await leadsCol.doc(String(id)).delete();
+  } catch(e) { console.error('Firestore delete error:', e); }
+}
+
+// Sincronizar todos os leads locais para o Firestore (migração inicial)
+async function syncAllToFirestore() {
+  if (!firestoreEnabled || !leads.length) return;
+  setSyncStatus('syncing');
+  try {
+    const batch = db.batch();
+    leads.forEach(l => {
+      const ref = leadsCol.doc(String(l.id));
+      batch.set(ref, l);
+    });
+    await batch.commit();
+    setSyncStatus('ok');
+    console.log('Sync inicial concluído:', leads.length, 'leads');
+  } catch(e) {
+    console.error('Sync error:', e);
+    setSyncStatus('error');
+  }
+}
+
+// Escuta em tempo real — atualiza leads quando qualquer dispositivo salva
+function iniciarListenerFirestore() {
+  leadsCol.orderBy('ts', 'desc').onSnapshot(snapshot => {
+    if (snapshot.empty) return;
+    const remotos = snapshot.docs.map(d => d.data());
+    // Merge: mantém dados remotos como fonte de verdade
+    leads = remotos;
+    saveAll(); // salva local também como cache
+    // Atualiza tela se estiver na aba leads
+    const tabLeads = document.getElementById('tab-leads');
+    if (tabLeads && tabLeads.classList.contains('active')) renderLeads();
+    const tabRel = document.getElementById('tab-relatorio');
+    if (tabRel && tabRel.classList.contains('active')) renderReport();
+    setSyncStatus('ok');
+  }, err => {
+    console.error('Listener error:', err);
+    setSyncStatus('error');
+  });
+}
+
+// Migração automática de versões anteriores
+
+function migrarDados() {
+  const chaves = ['waleads_v3','waleads_v2','waleads'];
+  for (const chave of chaves) {
+    try {
+      const raw = localStorage.getItem(chave);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const migrados = parsed.map(l => ({ proximo:'', feedback:'', tamanho:'-', orcamento:'-', ...l }));
+          localStorage.setItem('waleads_v4', JSON.stringify(migrados));
+          chaves.forEach(c => localStorage.removeItem(c));
+          return migrados;
+        }
+      }
+    } catch(e) {}
+  }
+  return null;
+}
+let leads = JSON.parse(localStorage.getItem('waleads_v4') || 'null');
+if (!leads) { leads = migrarDados() || []; }
+let corretores = JSON.parse(localStorage.getItem('corretores_v1') || '[]');
+let proximoIdx = parseInt(localStorage.getItem('corretor_idx') || '0');
+let editingId = null;
+function saveAll() { localStorage.setItem('waleads_v4', JSON.stringify(leads)); }
+function saveAllWithSync(lead) {
+  saveAll();
+  if (lead) saveLeadFirestore(lead);
+}
+function saveCorretores() { localStorage.setItem('corretores_v1', JSON.stringify(corretores)); }
+
+// Helpers de data
+function hoje() { return new Date().toISOString().slice(0,10); }
+function toISO(ddmmyyyy) {
+  if (!ddmmyyyy) return '';
+  if (ddmmyyyy.includes('-')) return ddmmyyyy; // já é ISO
+  const p = ddmmyyyy.split('/');
+  return p.length===3 ? p[2]+'-'+p[1]+'-'+p[0] : '';
+}
+function toBR(iso) {
+  if (!iso) return '';
+  if (iso.includes('/')) return iso;
+  const p = iso.split('-');
+  return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : '';
+}
+function diffDias(isoDate) {
+  if (!isoDate) return null;
+  const d = new Date(isoDate+'T00:00:00');
+  const h = new Date(hoje()+'T00:00:00');
+  return Math.round((d - h) / 86400000);
+}
+function prazoInfo(isoDate) {
+  if (!isoDate) return null;
+  const diff = diffDias(isoDate);
+  if (diff < 0) return { label: `${Math.abs(diff)}d atrasado`, cls: 'prazo-atrasado', tipo: 'atrasado' };
+  if (diff === 0) return { label: 'Hoje!', cls: 'prazo-hoje', tipo: 'hoje' };
+  return { label: `em ${diff}d (${toBR(isoDate)})`, cls: 'prazo-futuro', tipo: 'futuro' };
+}
+function diasSemFeedback(lead) {
+  if (lead.historico && lead.historico.length) return 0;
+  if (lead.feedback && lead.feedback.trim()) return 0;
+  const iso = toISO(lead.data);
+  if (!iso) return 0;
+  const diff = diffDias(iso);
+  return diff !== null ? Math.abs(diff) : 0;
+}
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const order = ['extrair','leads','relatorio','kanban','corretores'];
+  document.querySelectorAll('.tab')[order.indexOf(t)].classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t==='leads') renderLeads();
+  if (t==='relatorio') renderReport();
+  if (t==='corretores') renderCorretores();
+  if (t==='kanban') renderKanban();
+}
+
+function clearInput() {
+  document.getElementById('wainput').value = '';
+  document.getElementById('preview-area').style.display = 'none';
+}
+
+function extractPhone() {
+  const raw = document.getElementById('wainput').value.trim();
+  const area = document.getElementById('preview-area');
+  if (!raw) { area.style.display='none'; return; }
+  let digits = raw.replace(/\D/g,'');
+  if (raw.includes('wa.me/') || raw.includes('whatsapp.com')) {
+    const m = raw.match(/(?:wa\.me\/|phone=)(\d+)/);
+    if (m) digits = m[1];
+  }
+  if (digits.length < 10) { area.style.display='none'; return; }
+  if (digits.startsWith('55') && digits.length > 12) digits = digits.slice(2);
+  let fmt = digits;
+  if (digits.length === 11) fmt = '('+digits.slice(0,2)+') '+digits.slice(2,7)+'-'+digits.slice(7);
+  else if (digits.length === 10) fmt = '('+digits.slice(0,2)+') '+digits.slice(2,6)+'-'+digits.slice(6);
+  document.getElementById('phone-formatted').textContent = fmt;
+  document.getElementById('phone-raw').textContent = '+55'+digits;
+  document.getElementById('wa-link').href = 'https://wa.me/55'+digits;
+  // preencher data de hoje automaticamente
+  if (!document.getElementById('new-data').value) document.getElementById('new-data').value = hoje();
+  // Verificar duplicado
+  const existente = leads.find(l => l.phone === fmt || l.raw === '+55'+digits);
+  const avisoDiv = document.getElementById('aviso-duplicado');
+  if (existente) {
+    const contatos = existente.qtdContatos || 1;
+    avisoDiv.innerHTML = `
+      <div style="width:100%;">
+        <div style="font-weight:600;margin-bottom:6px;">⚠️ Número já cadastrado!</div>
+        <div style="font-size:12px;margin-bottom:8px;">
+          <strong>${existente.nome}</strong> · ${existente.status} · ${existente.corretor} · 
+          📞 <strong>${contatos} contato(s) anterior(es)</strong>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" style="background:var(--amber);color:#fff;border-color:var(--amber);" 
+            onclick="registrarNovoContato('${existente.id}')">
+            📅 Registrar novo contato
+          </button>
+          <button class="btn btn-sm" onclick="switchTab('leads');document.getElementById('busca').value='${existente.phone}';renderLeads();">
+            👁 Ver lead
+          </button>
+        </div>
+      </div>`;
+    avisoDiv.style.display = 'flex';
+  } else {
+    avisoDiv.style.display = 'none';
+  }
+  area.style.display = 'block';
+  document.getElementById('save-alert').style.display = 'none';
+}
+
+function getProximoCorretor() {
+  const ativos = corretores.filter(c => c.ativo !== false);
+  if (!ativos.length) return null;
+  const idx = (typeof proximoIdx === 'number' ? proximoIdx : 0) % ativos.length;
+  proximoIdx = idx + 1;
+  localStorage.setItem('corretor_idx', proximoIdx);
+  return ativos[idx];
+}
+
+function enviarWhatsAppCorretor(corretor, lead) {
+  const digits = corretor.fone.replace(/\D/g,'');
+  const msg = encodeURIComponent(
+    `🏡 *Novo Lead — Moradas da Serra*\n\n` +
+    `👤 *Nome:* ${lead.nome}\n` +
+    `📱 *Telefone:* ${lead.phone}\n` +
+    `📣 *Origem:* ${lead.origem||'-'}\n` +
+    `📐 *Tamanho:* ${lead.tamanho||'-'}\n` +
+    `💰 *Orçamento:* ${lead.orcamento||'-'}\n` +
+    `📝 *Obs:* ${lead.obs||'-'}\n\n` +
+    `Olá ${corretor.nome}, este lead foi distribuído para você. Bom atendimento! 😊`
+  );
+  window.open('https://wa.me/55' + digits + '?text=' + msg, '_blank');
+}
+
+function saveLead(enviar) {
+  const phone = document.getElementById('phone-formatted').textContent;
+  if (!phone) return;
+  const dataVal = document.getElementById('new-data').value;
+  const proxVal = document.getElementById('new-proximo').value;
+  // Determina corretor
+  let corretorSel = document.getElementById('new-corretor').value;
+  let corretorObj = null;
+  if (!corretorSel) {
+    // automático
+    corretorObj = getProximoCorretor();
+    corretorSel = corretorObj ? corretorObj.nome : '-';
+  } else {
+    corretorObj = corretores.find(c => c.nome === corretorSel) || null;
+  }
+  const feedbackTxt = document.getElementById('new-feedback').value || '';
+  const hist = feedbackTxt ? [{ texto: feedbackTxt, data: new Date().toLocaleDateString('pt-BR'), hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), corretor: corretorSel }] : [];
+  const lead = {
+    id: Date.now(),
+    phone, raw: document.getElementById('phone-raw').textContent,
+    nome: document.getElementById('new-nome').value || 'Sem nome',
+    origem: document.getElementById('new-origem').value,
+    empreendimento: document.getElementById('new-emp').value || 'Moradas da Serra',
+    status: document.getElementById('new-status').value,
+    corretor: corretorSel,
+    tamanho: document.getElementById('new-tamanho').value || '-',
+    orcamento: document.getElementById('new-orcamento').value || '-',
+    obs: document.getElementById('new-obs').value || '',
+    feedback: feedbackTxt,
+    historico: hist,
+    data: dataVal ? toBR(dataVal) : new Date().toLocaleDateString('pt-BR'),
+    proximo: proxVal || '',
+    ts: Date.now()
+  };
+  leads.unshift(lead);
+  saveAll();
+  saveLeadFirestore(lead);
+  document.getElementById('save-alert').style.display = 'flex';
+  document.getElementById('wainput').value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  ['new-nome','new-obs','new-feedback'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('new-corretor').value = '';
+  document.getElementById('new-data').value = '';
+  document.getElementById('new-proximo').value = '';
+  setTimeout(()=>document.getElementById('save-alert').style.display='none', 3000);
+  if (enviar) {
+    if (corretorObj && corretorObj.fone) {
+      enviarWhatsAppCorretor(corretorObj, lead);
+    } else {
+      alert('Corretor sem WhatsApp cadastrado. Cadastre o número na aba Corretores.');
+    }
+  }
+}
+
+function statusBadge(s) {
+  const m = {'Novo':'badge-novo','Contato feito':'badge-contato','Visita agendada':'badge-visita','Proposta enviada':'badge-proposta','Fechado':'badge-fechado','Sem interação':'badge-sem','Sem interesse':'badge-sem-interesse'};
+  return '<span class="badge '+(m[s]||'badge-novo')+'">'+s+'</span>';
+}
+
+function updateStatus(id, val) {
+  const l = leads.find(x=>x.id===id);
+  if (l) { l.status=val; saveAll(); saveLeadFirestore(l); }
+}
+
+function openEdit(id) {
+  const l = leads.find(x=>x.id===id);
+  if (!l) return;
+  editingId = id;
+  document.getElementById('edit-nome').value = l.nome||'';
+  document.getElementById('edit-phone').value = l.phone||'';
+  document.getElementById('edit-origem').value = l.origem||'WhatsApp';
+  document.getElementById('edit-emp').value = l.empreendimento||'';
+  document.getElementById('edit-status').value = l.status||'Novo';
+  document.getElementById('edit-corretor').value = l.corretor!=='-'?l.corretor:'';
+  document.getElementById('edit-tamanho').value = l.tamanho!=='-'?l.tamanho:'';
+  document.getElementById('edit-orcamento').value = l.orcamento!=='-'?l.orcamento:'';
+  document.getElementById('edit-obs').value = l.obs||'';
+  document.getElementById('edit-feedback').value = '';
+  document.getElementById('edit-data').value = toISO(l.data)||'';
+  document.getElementById('edit-proximo').value = l.proximo||'';
+  renderHistorico(l.historico||[]);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function renderHistorico(hist) {
+  const el = document.getElementById('historico-lista');
+  if (!hist || !hist.length) { el.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Nenhum registro ainda.</p>'; return; }
+  el.innerHTML = '<div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:6px;">Histórico de atendimentos</div>' +
+    [...hist].reverse().map((r,i) => `
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--bg-secondary);border-radius:var(--radius);margin-bottom:6px;border-left:3px solid var(--purple);">
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">📅 ${r.data} ${r.hora ? '· ' + r.hora : ''} ${r.corretor&&r.corretor!=='-'?' · '+r.corretor:''}</div>
+        <div style="font-size:13px;color:var(--text);">${r.texto}</div>
+      </div>
+      <button onclick="removerRegistro(${hist.length-1-i})" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;flex-shrink:0;" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+function adicionarRegistro() {
+  const texto = document.getElementById('edit-feedback').value.trim();
+  if (!texto) { alert('Digite o texto do atendimento antes de adicionar.'); return; }
+  const l = leads.find(x=>x.id===editingId);
+  if (!l) return;
+  if (!l.historico) l.historico = [];
+  const now = new Date();
+  const corretorVal = document.getElementById('edit-corretor').value||'-';
+  l.historico.push({
+    texto,
+    data: now.toLocaleDateString('pt-BR'),
+    hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    corretor: corretorVal
+  });
+  // mantém feedback como o texto mais recente para compatibilidade
+  l.feedback = texto;
+  saveAll();
+  document.getElementById('edit-feedback').value = '';
+  renderHistorico(l.historico);
+}
+
+function removerRegistro(idx) {
+  if (!confirm('Remover este registro?')) return;
+  const l = leads.find(x=>x.id===editingId);
+  if (!l || !l.historico) return;
+  l.historico.splice(idx, 1);
+  l.feedback = l.historico.length ? l.historico[l.historico.length-1].texto : '';
+  saveAll();
+  renderHistorico(l.historico);
+}
+
+function closeModal(e) { if (e.target===document.getElementById('modal-overlay')) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modal-overlay').classList.remove('open'); editingId=null; }
+
+function saveEdit() {
+  const l = leads.find(x=>x.id===editingId);
+  if (!l) return;
+  l.nome = document.getElementById('edit-nome').value||'Sem nome';
+  l.origem = document.getElementById('edit-origem').value;
+  l.empreendimento = document.getElementById('edit-emp').value||'Moradas da Serra';
+  l.status = document.getElementById('edit-status').value;
+  l.corretor = document.getElementById('edit-corretor').value||'-';
+  l.tamanho = document.getElementById('edit-tamanho').value||'-';
+  l.orcamento = document.getElementById('edit-orcamento').value||'-';
+  l.obs = document.getElementById('edit-obs').value||'';
+  const dv = document.getElementById('edit-data').value;
+  if (dv) l.data = toBR(dv);
+  l.proximo = document.getElementById('edit-proximo').value||'';
+  // se tem texto pendente no campo, adiciona automaticamente
+  const textoSolto = document.getElementById('edit-feedback').value.trim();
+  if (textoSolto) {
+    if (!l.historico) l.historico = [];
+    const now = new Date();
+    l.historico.push({ texto: textoSolto, data: now.toLocaleDateString('pt-BR'), hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), corretor: l.corretor });
+    l.feedback = textoSolto;
+  }
+  saveAll();
+  saveLeadFirestore(l);
+  closeModalDirect();
+  renderLeads();
+}
+
+let currentSubTab = 'ativos';
+function switchSubTab(tab) {
+  currentSubTab = tab;
+  document.querySelectorAll('.subtab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.subtab-section').forEach(s => s.classList.remove('active'));
+  const idx = ['ativos','fechados','invalidados'].indexOf(tab);
+  document.querySelectorAll('.subtab')[idx].classList.add('active');
+  document.getElementById('subtab-'+tab).classList.add('active');
+  renderLeads();
+}
+
+const STATUS_ATIVOS = ['Novo','Contato feito','Visita agendada','Proposta enviada',
+  'Qualificação','Follow 1','Follow 2','Follow 3','Atendimento Consultor',
+  'Agendamento Visita','Visita ao Plantão','Proposta Apresentada','Negociação/Decisão'];
+const STATUS_FECHADOS = ['Venda Ganha'];
+const STATUS_INVALIDADOS = ['Sem interação','Sem interesse'];
+
+// ── KANBAN ───────────────────────────────────────────────────────────────
+const KANBAN_COLS = [
+  { id: 'Qualificação',        label: 'Qualificação',        color: '#A8D5A2', emoji: '🌱' },
+  { id: 'Follow 1',            label: 'Follow 1',            color: '#7EC8E3', emoji: '📞' },
+  { id: 'Follow 2',            label: 'Follow 2',            color: '#5BA4CF', emoji: '📞' },
+  { id: 'Follow 3',            label: 'Follow 3',            color: '#3D7EAA', emoji: '📞' },
+  { id: 'Atendimento Consultor', label: 'Atend. Consultor',  color: '#F4A261', emoji: '🤝' },
+  { id: 'Agendamento Visita',  label: 'Agend. Visita',       color: '#E76F51', emoji: '📅' },
+  { id: 'Visita ao Plantão',   label: 'Visita Plantão',      color: '#E9C46A', emoji: '🏡' },
+  { id: 'Proposta Apresentada', label: 'Proposta',           color: '#9B72CF', emoji: '📄' },
+  { id: 'Negociação/Decisão',  label: 'Negociação',          color: '#E07CB5', emoji: '🤜' },
+  { id: 'Venda Ganha',         label: 'Venda Ganha',         color: '#2DC653', emoji: '🏆' },
+];
+const KANBAN_INVALIDADOS = [
+  { id: 'Sem interação', label: 'Sem Interação', color: '#AAAAAA', emoji: '😶' },
+  { id: 'Sem interesse', label: 'Sem Interesse',  color: '#CC6666', emoji: '🚫' },
+];
+
+let dragId = null;
+
+function renderKanban() {
+  const showInv = document.getElementById('kanban-show-invalidados').checked;
+  const cols = showInv ? [...KANBAN_COLS, ...KANBAN_INVALIDADOS] : KANBAN_COLS;
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = cols.map(col => {
+    const colLeads = leads.filter(l => l.status === col.id);
+    const isInv = KANBAN_INVALIDADOS.some(c => c.id === col.id);
+    return `<div class="kanban-col${isInv?' kanban-perdido-col':''}" 
+      data-status="${col.id}"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="onDrop(event,'${col.id}')">
+      <div class="kanban-col-header" style="background:${col.color};">
+        <span style="color:#fff;">${col.emoji} ${col.label}</span>
+        <span class="kanban-col-count">${colLeads.length}</span>
+      </div>
+      ${colLeads.length === 0 
+        ? `<div class="kanban-empty">Sem leads</div>` 
+        : colLeads.map(l => kanbanCard(l)).join('')}
+    </div>`;
+  }).join('');
+}
+
+function kanbanCard(l) {
+  const hist = l.historico && l.historico.length ? l.historico : [];
+  const lastFb = hist.length ? hist[hist.length-1].texto : (l.feedback || '');
+  const semFb = !lastFb && STATUS_ATIVOS.includes(l.status);
+  return `<div class="kanban-card" draggable="true"
+    data-id="${l.id}"
+    ondragstart="dragId=${l.id};this.classList.add('dragging')"
+    ondragend="this.classList.remove('dragging')">
+    <div class="kanban-card-nome" title="${l.nome}">${l.nome}${l.qtdContatos>1?` <span style="background:var(--amber);color:#fff;border-radius:100px;font-size:9px;padding:1px 5px;font-weight:700;">${l.qtdContatos}x</span>`:''}</div>
+    <div class="kanban-card-phone">${l.phone}</div>
+    <div class="kanban-card-corretor">👤 ${l.corretor}</div>
+    ${semFb 
+      ? `<div class="kanban-card-fb" style="color:var(--amber-dark);background:var(--amber-light);">⚠ Sem feedback</div>`
+      : lastFb ? `<div class="kanban-card-fb">${lastFb}</div>` : ''}
+    ${l.proximo && l.proximo!=='-' ? `<div class="kanban-card-data">🔔 ${l.proximo}</div>` : ''}
+    <div class="kanban-card-data">${l.data}</div>
+    <div class="kanban-card-actions">
+      <button class="kanban-card-btn" onclick="openEdit(${l.id})" title="Editar">✏️</button>
+      <a href="https://wa.me/${(l.raw||'').replace(/\D/g,'')}" target="_blank" class="kanban-card-btn" title="Abrir WhatsApp">📱</a>
+    </div>
+  </div>`;
+}
+
+function onDrop(event, novoStatus) {
+  event.preventDefault();
+  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
+  if (!dragId) return;
+  const l = leads.find(x => x.id === dragId);
+  if (!l || l.status === novoStatus) return;
+  l.status = novoStatus;
+  saveAll();
+  saveLeadFirestore(l);
+  renderKanban();
+  // update leads tab counts
+  const ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
+  const fechados = leads.filter(l => STATUS_FECHADOS.includes(l.status));
+  const invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
+  const ca = document.getElementById('count-ativos');
+  const cf = document.getElementById('count-fechados');
+  const ci = document.getElementById('count-invalidados');
+  if(ca) ca.textContent = ativos.length;
+  if(cf) cf.textContent = fechados.length;
+  if(ci) ci.textContent = invalidados.length;
+  dragId = null;
+}
+// ── FIM KANBAN ───────────────────────────────────────────────────────────
+
+function renderAlertas() {
+  const atrasados = leads.filter(l => {
+    if (!l.proximo || ['Fechado','Sem interação','Sem interesse'].includes(l.status)) return false;
+    return diffDias(l.proximo) < 0;
+  });
+  const hoje_ret = leads.filter(l => {
+    if (!l.proximo || ['Fechado','Sem interação','Sem interesse'].includes(l.status)) return false;
+    return diffDias(l.proximo) === 0;
+  });
+  const sem_fb = leads.filter(l => {
+    if (['Fechado','Sem interação','Sem interesse'].includes(l.status)) return false;
+    return diasSemFeedback(l) >= 3;
+  });
+  let html = '';
+  if (atrasados.length) html += `<div class="alert alert-danger" style="margin-bottom:10px;">⚠️ <strong>${atrasados.length} lead(s)</strong> com retorno atrasado — clique em "Retorno atrasado" no filtro para ver</div>`;
+  if (hoje_ret.length) html += `<div class="alert alert-warn" style="margin-bottom:10px;">🔔 <strong>${hoje_ret.length} lead(s)</strong> com retorno agendado para hoje</div>`;
+  if (sem_fb.length) html += `<div class="alert alert-info" style="margin-bottom:10px;">📋 <strong>${sem_fb.length} lead(s)</strong> sem feedback há 3 dias ou mais</div>`;
+  document.getElementById('alertas-container').innerHTML = html;
+}
+
+function renderLeads() {
+  renderAlertas();
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const fp = document.getElementById('filtro-prazo').value;
+
+  // Update subtab counts
+  const ativos = leads.filter(l => STATUS_ATIVOS.includes(l.status));
+  const fechados = leads.filter(l => STATUS_FECHADOS.includes(l.status));
+  const invalidados = leads.filter(l => STATUS_INVALIDADOS.includes(l.status));
+  document.getElementById('count-ativos').textContent = ativos.length;
+  document.getElementById('count-fechados').textContent = fechados.length;
+  document.getElementById('count-invalidados').textContent = invalidados.length;
+
+  // Filter based on current subtab
+  let pool;
+  if (currentSubTab === 'ativos') pool = ativos;
+  else if (currentSubTab === 'fechados') pool = fechados;
+  else pool = invalidados;
+
+  const fs = ''; // no status filter needed since subtab handles it
+
+  let filtered = pool.filter(l => {
+    const matchB = !busca || l.nome.toLowerCase().includes(busca) || l.phone.includes(busca) || (l.corretor||'').toLowerCase().includes(busca);
+    const matchS = true;
+    let matchP = true;
+    if (fp === 'atrasado') matchP = l.proximo && diffDias(l.proximo) < 0 && l.status!=='Fechado' && l.status!=='Perdido';
+    if (fp === 'hoje') matchP = l.proximo && diffDias(l.proximo) === 0;
+    if (fp === 'sem_feedback') matchP = diasSemFeedback(l) >= 3 && l.status!=='Fechado' && l.status!=='Perdido';
+    return matchB && matchS && matchP;
+  });
+
+  const total=leads.length, novos=leads.filter(l=>l.status==='Novo').length,
+    visitas=leads.filter(l=>l.status==='Visita agendada').length,
+    fechados=leads.filter(l=>l.status==='Fechado').length,
+    atrasados=leads.filter(l=>l.proximo && diffDias(l.proximo)<0 && l.status!=='Fechado' && l.status!=='Perdido').length;
+
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Total leads</div><div class="metric-value">${total}</div></div>
+    <div class="metric"><div class="metric-label">Novos</div><div class="metric-value blue">${novos}</div></div>
+    <div class="metric"><div class="metric-label">Visitas</div><div class="metric-value purple">${visitas}</div></div>
+    <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value green">${fechados}</div></div>`;
+
+  if (!filtered.length) {
+    const tableEl = document.getElementById('leads-table-'+currentSubTab);
+    if(tableEl) tableEl.innerHTML='<div class="empty-state"><p>Nenhum lead encontrado</p></div>';
+    return;
+  }
+  const statusOpts=['Qualificação','Follow 1','Follow 2','Follow 3','Atendimento Consultor','Agendamento Visita','Visita ao Plantão','Proposta Apresentada','Negociação/Decisão','Venda Ganha','Sem interação','Sem interesse'];
+  document.getElementById('leads-table-'+currentSubTab).innerHTML=`<table>
+    <thead><tr>
+      <th><input type="checkbox" id="check-all" onclick="toggleTodos(this)" style="width:15px;height:15px;accent-color:var(--purple);cursor:pointer;"></th>
+      <th>Nome</th><th>Telefone</th><th>Status</th><th>Próx. contato</th><th>Corretor</th><th>Data</th><th>Feedback</th><th></th>
+    </tr></thead>
+    <tbody>${filtered.map(l => {
+      const pi = l.proximo ? prazoInfo(l.proximo) : null;
+      const semFb = diasSemFeedback(l) >= 3 && l.status!=='Fechado' && l.status!=='Perdido';
+      const rowCls = pi && pi.tipo==='atrasado' ? 'row-atrasado' : (pi && pi.tipo==='hoje' ? 'row-hoje' : (semFb ? 'sem-feedback-row' : ''));
+      const proxHtml = pi
+        ? `<span class="prazo-pill ${pi.cls}">${pi.label}</span>`
+        : `<span class="prazo-pill prazo-vazio">—</span>`;
+      return `<tr class="${rowCls}">
+        <td><input type="checkbox" class="lead-check" data-id="${l.id}" onchange="atualizarBulkBar()" style="width:15px;height:15px;accent-color:var(--purple);cursor:pointer;"></td>
+        <td style="font-weight:600">${l.nome}${l.qtdContatos>1?` <span title="${l.qtdContatos} contatos" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--amber);color:#fff;font-size:10px;font-weight:700;margin-left:4px;">${l.qtdContatos}</span>`:''}</td>
+        <td style="font-family:monospace;font-size:12px"><a href="https://wa.me/${(l.raw||'').replace(/\D/g,'')}" target="_blank" style="color:var(--purple-dark);text-decoration:none;">${l.phone}</a></td>
+        <td><select class="status-inline" onchange="updateStatus(${l.id},this.value)">${statusOpts.map(s=>`<option value="${s}"${s===l.status?' selected':''}>${s}</option>`).join('')}</select></td>
+        <td>${proxHtml}</td>
+        <td style="font-size:12px">${l.corretor}</td>
+        <td style="font-size:12px;color:var(--text-muted);white-space:nowrap">${l.data}</td>
+        <td style="font-size:12px;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${((l.historico&&l.historico.length?l.historico[l.historico.length-1].texto:l.feedback)||'').replace(/"/g,'&quot;')}">
+          ${semFb && !(l.historico&&l.historico.length) && !l.feedback ? '<span style="color:var(--amber-dark)">⚠ sem feedback</span>' : (l.historico&&l.historico.length ? '💬 '+l.historico.length+' registro(s)' : (l.feedback||'-'))}</td>
+        <td style="display:flex;gap:4px;">
+          <button class="btn btn-sm" style="background:#25D366;color:#fff;border-color:#25D366;font-size:11px;" onclick="abrirModalEnvioUnico(${l.id})" title="Enviar para corretor">📲</button>
+          <button class="btn btn-sm btn-edit" onclick="openEdit(${l.id})" title="Editar">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteLead(${l.id})" title="Excluir">🗑</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function migrarPerdidoParaSemInteresse() {
+  let count = 0;
+  leads.forEach(l => {
+    if (l.status === 'Perdido') {
+      l.status = 'Sem interesse';
+      count++;
+    }
+  });
+  if (count === 0) { alert('Nenhum lead com status "Perdido" encontrado.'); return; }
+  saveAll();
+  renderLeads();
+  alert(count + ' lead(s) atualizado(s) de "Perdido" para "Sem interesse".');
+}
+
+function atualizarSemInteracao() {
+  const termos = ['não responde','nao responde','n responde','sem resposta','não atende','nao atende','não retornou','nao retornou'];
+  let count = 0;
+  leads.forEach(l => {
+    if (l.status === 'Fechado') return;
+    // verifica histórico
+    const textos = [];
+    if (l.historico && l.historico.length) {
+      l.historico.forEach(h => textos.push((h.texto||'').toLowerCase()));
+    } else if (l.feedback) {
+      textos.push(l.feedback.toLowerCase());
+    }
+    const match = textos.some(t => termos.some(term => t.includes(term)));
+    if (match && l.status !== 'Sem interação') {
+      l.status = 'Sem interação';
+      count++;
+    }
+  });
+  if (count === 0) {
+    alert('Nenhum lead encontrado com feedback de "não responde".');
+    return;
+  }
+  saveAll();
+  renderLeads();
+  alert(count + ' lead(s) atualizado(s) para "Sem interação".');
+}
+
+function deleteLead(id) {
+  if (!confirm('Excluir este lead?')) return;
+  leads = leads.filter(l=>l.id!==id);
+  saveAll();
+  deleteLeadFirestore(id);
+  renderLeads();
+}
+
+function barBlock(label, n, total, color) {
+  const pct = total ? Math.round(n/total*100) : 0;
+  return `<div class="progress-wrap">
+    <div class="progress-row"><span>${label}</span><span style="font-weight:600">${n} <span style="font-weight:400;color:var(--text-muted)">(${pct}%)</span></span></div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+  </div>`;
+}
+
+function renderReport() {
+  document.getElementById('report-date').textContent = 'Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const total=leads.length, fechados=leads.filter(l=>l.status==='Fechado').length,
+    perdidos=leads.filter(l=>l.status==='Sem interesse'||l.status==='Sem interação').length,
+    conv=total?Math.round(fechados/total*100):0,
+    atrasados=leads.filter(l=>l.proximo&&diffDias(l.proximo)<0&&l.status!=='Fechado'&&l.status!=='Perdido').length;
+
+  document.getElementById('report-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Total leads</div><div class="metric-value">${total}</div></div>
+    <div class="metric"><div class="metric-label">Fechamentos</div><div class="metric-value green">${fechados}</div></div>
+    <div class="metric"><div class="metric-label">Conversão</div><div class="metric-value purple">${conv}%</div></div>
+    <div class="metric"><div class="metric-label">Retornos atrasados</div><div class="metric-value ${atrasados>0?'red':'green'}">${atrasados}</div></div>`;
+
+  const funnelOrder=['Qualificação','Follow 1','Follow 2','Follow 3','Atendimento Consultor','Agendamento Visita','Visita ao Plantão','Proposta Apresentada','Negociação/Decisão','Venda Ganha','Sem interação','Sem interesse'];
+  const funnelColors={'Qualificação':'#A8D5A2','Follow 1':'#7EC8E3','Follow 2':'#5BA4CF','Follow 3':'#3D7EAA','Atendimento Consultor':'#F4A261','Agendamento Visita':'#E76F51','Visita ao Plantão':'#E9C46A','Proposta Apresentada':'#9B72CF','Negociação/Decisão':'#E07CB5','Venda Ganha':'#2DC653','Sem interação':'#9CA3AF','Sem interesse':'#E24B4A'};
+  const maxF=Math.max(...funnelOrder.map(s=>leads.filter(l=>l.status===s).length),1);
+  document.getElementById('funnel').innerHTML=funnelOrder.map(s=>{
+    const n=leads.filter(l=>l.status===s).length, pct=Math.round(n/maxF*100);
+    return `<div class="funnel-item"><div class="funnel-label">${s}</div><div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:${funnelColors[s]}">${n>0?n:''}</div></div><div class="funnel-count">${n}</div></div>`;
+  }).join('');
+
+  const oriCount={};
+  leads.forEach(l=>oriCount[l.origem||'Não informado']=(oriCount[l.origem||'Não informado']||0)+1);
+  document.getElementById('por-origem').innerHTML=Object.entries(oriCount).sort((a,b)=>b[1]-a[1])
+    .map(([o,n])=>barBlock(o,n,total,'#378ADD')).join('')||'<p style="font-size:12px;color:var(--text-muted)">Sem dados</p>';
+
+  const corrCount={};
+  leads.forEach(l=>{if(l.corretor&&l.corretor!=='-')corrCount[l.corretor]=(corrCount[l.corretor]||0)+1;});
+  document.getElementById('por-corretor').innerHTML=Object.entries(corrCount).sort((a,b)=>b[1]-a[1])
+    .map(([c,n])=>barBlock(c,n,total,'#1D9E75')).join('')||'<p style="font-size:12px;color:var(--text-muted)">Sem dados</p>';
+
+  // Retornos pendentes
+  const pendentes = leads.filter(l=>l.proximo && l.status!=='Fechado' && l.status!=='Perdido').sort((a,b)=>a.proximo.localeCompare(b.proximo));
+  if (!pendentes.length) {
+    document.getElementById('retornos-pendentes').innerHTML='<p style="font-size:12px;color:var(--text-muted)">Nenhum retorno agendado.</p>';
+  } else {
+    document.getElementById('retornos-pendentes').innerHTML=`<table>
+      <thead><tr><th>Nome</th><th>Telefone</th><th>Status</th><th>Corretor</th><th>Próximo contato</th><th>Situação</th></tr></thead>
+      <tbody>${pendentes.map(l=>{
+        const pi=prazoInfo(l.proximo);
+        return `<tr class="${pi&&pi.tipo==='atrasado'?'row-atrasado':(pi&&pi.tipo==='hoje'?'row-hoje':'')}">
+          <td style="font-weight:600">${l.nome}${l.qtdContatos>1?` <span title="${l.qtdContatos} contatos" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--amber);color:#fff;font-size:10px;font-weight:700;margin-left:4px;">${l.qtdContatos}</span>`:''}</td>
+          <td style="font-family:monospace;font-size:12px">${l.phone}</td>
+          <td>${statusBadge(l.status)}</td>
+          <td style="font-size:12px">${l.corretor}</td>
+          <td style="font-size:12px">${toBR(l.proximo)}</td>
+          <td>${pi?`<span class="prazo-pill ${pi.cls}">${pi.label}</span>`:''}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  // Feedbacks / Histórico
+  const comHistorico = leads.filter(l=>(l.historico&&l.historico.length)||(l.feedback&&l.feedback.trim()));
+  if (!comHistorico.length) {
+    document.getElementById('feedbacks').innerHTML='<p style="font-size:12px;color:var(--text-muted)">Nenhum feedback registrado ainda.</p>';
+  } else {
+    document.getElementById('feedbacks').innerHTML = comHistorico.map(l=>{
+      const registros = l.historico && l.historico.length ? l.historico
+        : (l.feedback ? [{texto:l.feedback, data:l.data, hora:'', corretor:l.corretor}] : []);
+      return `<div style="background:var(--bg-secondary);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-weight:600;font-size:13px;">${l.nome}</span>
+          <span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${l.phone}</span>
+          ${statusBadge(l.status)}
+          <span style="font-size:12px;color:var(--text-muted)">· ${l.corretor}</span>
+        </div>
+        ${[...registros].reverse().map(r=>`
+          <div style="padding:6px 10px;background:#fff;border-radius:var(--radius);margin-bottom:4px;border-left:3px solid var(--purple);">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">📅 ${r.data}${r.hora?' · '+r.hora:''}${r.corretor&&r.corretor!=='-'?' · '+r.corretor:''}</div>
+            <div style="font-size:13px;">${r.texto}</div>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  if (!leads.length) { document.getElementById('report-table').innerHTML='<p style="font-size:12px;color:var(--text-muted)">Nenhum lead cadastrado.</p>'; return; }
+  document.getElementById('report-table').innerHTML=`<table>
+    <thead><tr><th>#</th><th>Nome</th><th>Telefone</th><th>Status</th><th>Corretor</th><th>Origem</th><th>Próx. contato</th><th>Data</th></tr></thead>
+    <tbody>${leads.map((l,i)=>{
+      const pi=l.proximo?prazoInfo(l.proximo):null;
+      return `<tr>
+        <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+        <td style="font-weight:600">${l.nome}${l.qtdContatos>1?` <span title="${l.qtdContatos} contatos" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--amber);color:#fff;font-size:10px;font-weight:700;margin-left:4px;">${l.qtdContatos}</span>`:''}</td>
+        <td style="font-family:monospace;font-size:12px">${l.phone}</td>
+        <td>${statusBadge(l.status)}</td>
+        <td style="font-size:12px">${l.corretor}</td>
+        <td style="font-size:12px">${l.origem||'-'}</td>
+        <td style="font-size:12px">${pi?`<span class="prazo-pill ${pi.cls}">${pi.label}</span>`:'-'}</td>
+        <td style="font-size:12px;white-space:nowrap;min-width:80px">${l.data}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function exportCSV() {
+  if (!leads.length) { alert('Nenhum lead para exportar.'); return; }
+  // Exporta histórico completo: uma linha por registro de atendimento
+  const rows = [];
+  const headers = ['Nome','Telefone','Empreendimento','Status','Origem','Corretor','Tamanho','Orçamento','Observação','Feedback atendimento','Data atendimento','Corretor atendimento','Data contato','Próximo contato'];
+  leads.forEach(l => {
+    const hist = l.historico && l.historico.length ? l.historico : (l.feedback ? [{texto:l.feedback, data:l.data, hora:'', corretor:l.corretor}] : []);
+    if (hist.length) {
+      hist.forEach(h => {
+        rows.push([l.nome,l.phone,l.empreendimento,l.status,l.origem||'',l.corretor,l.tamanho||'',l.orcamento||'',l.obs||'',h.texto||'',h.data||'',h.corretor||'',l.data,toBR(l.proximo)||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+      });
+    } else {
+      rows.push([l.nome,l.phone,l.empreendimento,l.status,l.origem||'',l.corretor,l.tamanho||'',l.orcamento||'',l.obs||'','','','',l.data,toBR(l.proximo)||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+    }
+  });
+  const csv='\uFEFF'+[headers.join(','),...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='leads_moradas_da_serra_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+function adicionarCorretor() {
+  const nome = document.getElementById('cor-nome').value.trim();
+  const fone = document.getElementById('cor-fone').value.trim();
+  if (!nome) { alert('Digite o nome do corretor.'); return; }
+  if (corretores.find(c => c.nome === nome)) { alert('Corretor já cadastrado.'); return; }
+  corretores.push({ nome, fone, ativo: true });
+  saveCorretores();
+  document.getElementById('cor-nome').value = '';
+  document.getElementById('cor-fone').value = '';
+  renderCorretores();
+  popularSelectCorretores();
+}
+
+function removerCorretor(idx) {
+  if (!confirm('Remover corretor ' + corretores[idx].nome + '?')) return;
+  corretores.splice(idx, 1);
+  saveCorretores();
+  renderCorretores();
+  popularSelectCorretores();
+}
+
+function toggleCorretor(idx) {
+  corretores[idx].ativo = !corretores[idx].ativo;
+  saveCorretores();
+  renderCorretores();
+}
+
+function renderCorretores() {
+  const lista = document.getElementById('corretores-lista');
+  if (!corretores.length) {
+    lista.innerHTML = '<p style="font-size:12px;color:var(--text-muted);">Nenhum corretor cadastrado ainda.</p>';
+    document.getElementById('proximo-fila').innerHTML = 'Nenhum corretor cadastrado.';
+    return;
+  }
+  lista.innerHTML = `<table><thead><tr><th>#</th><th>Nome</th><th>WhatsApp</th><th>Status</th><th>Leads</th><th></th></tr></thead>
+    <tbody>${corretores.map((c,i) => {
+      const total = leads.filter(l => l.corretor === c.nome).length;
+      return `<tr>
+        <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+        <td style="font-weight:600">${c.nome}</td>
+        <td style="font-family:monospace;font-size:12px">${c.fone||'—'}</td>
+        <td><span class="badge ${c.ativo!==false?'badge-fechado':'badge-perdido'}">${c.ativo!==false?'Ativo':'Inativo'}</span></td>
+        <td style="font-size:12px;font-weight:600">${total}</td>
+        <td style="display:flex;gap:4px;">
+          <button class="btn btn-sm" onclick="toggleCorretor(${i})" style="font-size:11px;">${c.ativo!==false?'Pausar':'Ativar'}</button>
+          <button class="btn btn-sm btn-danger" onclick="removerCorretor(${i})">🗑</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  const ativos = corretores.filter(c => c.ativo !== false);
+  const idx = proximoIdx % (ativos.length || 1);
+  const prox = ativos[idx];
+  document.getElementById('proximo-fila').innerHTML = prox
+    ? `<strong style="color:var(--purple-dark);font-size:16px;">${prox.nome}</strong> <span style="font-size:12px;color:var(--text-muted);">· ${prox.fone||'sem número'}</span>`
+    : 'Nenhum corretor ativo.';
+}
+
+function popularSelectCorretores() {
+  const sel = document.getElementById('new-corretor');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">🔄 Automático (revezamento)</option>' +
+    corretores.filter(c => c.ativo !== false).map(c => `<option value="${c.nome}">${c.nome}</option>`).join('');
+  sel.value = val;
+}
+
+popularSelectCorretores();
+renderLeads();
+// Inicia listener do Firestore e faz sync inicial
+setTimeout(async () => {
+  try {
+    const snap = await leadsCol.limit(1).get();
+    if (snap.empty && leads.length > 0) {
+      // Firestore vazio mas tem dados locais — migra
+      console.log('Firestore vazio, migrando dados locais...');
+      await syncAllToFirestore();
+    }
+    iniciarListenerFirestore();
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    setSyncStatus('error');
+    firestoreEnabled = false;
+  }
+}, 1000);
+
+function registrarNovoContato(id) {
+  const l = leads.find(x => x.id === parseInt(id));
+  if (!l) return;
+  // Incrementa contador
+  l.qtdContatos = (l.qtdContatos || 1) + 1;
+  // Atualiza data do contato para hoje
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  l.data = dataHoje;
+  // Adiciona registro no histórico
+  if (!l.historico) l.historico = [];
+  l.historico.push({
+    texto: `Novo contato recebido (${l.qtdContatos}º contato)`,
+    data: dataHoje,
+    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    corretor: l.corretor
+  });
+  l.feedback = l.historico[l.historico.length-1].texto;
+  saveAll();
+  saveLeadFirestore(l);
+  // Limpa formulário e aviso
+  document.getElementById('wainput').value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('aviso-duplicado').style.display = 'none';
+  // Mostra confirmação
+  const alert = document.getElementById('save-alert');
+  alert.innerHTML = `✔ ${l.qtdContatos}º contato registrado para ${l.nome}!`;
+  alert.style.display = 'flex';
+  setTimeout(() => { alert.style.display='none'; alert.innerHTML='✔ Lead salvo!'; }, 4000);
+  // Abre modal de edição para atualizar o que precisar
+  openEdit(l.id);
+}
+
+function gerarPainelLoteador() {
+  if (!leads.length) { alert('Nenhum lead para gerar o painel.'); return; }
+  const total = leads.length;
+  const fechados = leads.filter(l=>l.status==='Fechado').length;
+  const novos = leads.filter(l=>l.status==='Novo').length;
+  const visitas = leads.filter(l=>l.status==='Visita agendada').length;
+  const atrasados = leads.filter(l=>l.proximo&&diffDias(l.proximo)<0&&!['Fechado','Sem interação','Sem interesse'].includes(l.status)).length;
+  const hojeRet = leads.filter(l=>l.proximo&&diffDias(l.proximo)===0&&!['Fechado','Sem interação','Sem interesse'].includes(l.status)).length;
+  const geradoEm = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const statusList = ['Novo','Contato feito','Visita agendada','Proposta enviada','Fechado','Sem interação','Sem interesse'];
+  const funnelColors = {'Novo':'#378ADD','Contato feito':'#EF9F27','Visita agendada':'#7F77DD','Proposta enviada':'#639922','Fechado':'#1D9E75','Sem interação':'#9CA3AF','Sem interesse':'#F97316'};
+  const badgeStyle = {'Novo':'background:#E6F1FB;color:#185FA5','Contato feito':'background:#FAEEDA;color:#854F0B','Visita agendada':'background:#EEEDFE;color:#534AB7','Proposta enviada':'background:#EAF3DE;color:#639922','Fechado':'background:#E1F5EE;color:#1D9E75','Sem interação':'background:#F3F3F3;color:#555','Sem interesse':'background:#FEF3EC;color:#C2410C'};
+  const maxF = Math.max(...statusList.map(s=>leads.filter(l=>l.status===s).length),1);
+  function bdg(s){ const v=badgeStyle[s]||'background:#F3F3F3;color:#555'; return '<span style="display:inline-flex;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;'+v+'">'+s+'</span>'; }
+  function pLabel(br){ const d=diffDias(br); if(d===null)return'-'; if(d<0)return '<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">'+Math.abs(d)+'d atrasado</span>'; if(d===0)return '<span style="background:#FFFBEA;color:#92400E;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">Hoje!</span>'; return '<span style="background:#E1F5EE;color:#1D9E75;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600;">em '+d+'d</span>'; }
+  function card(t,b){ return '<div style="background:#fff;border-radius:12px;border:1px solid #E0E0E0;padding:20px;margin-bottom:16px;"><div style="font-size:14px;font-weight:600;margin-bottom:14px;">'+t+'</div>'+b+'</div>'; }
+  function metric(l,v,c){ return '<div style="background:#fff;border:1px solid #E0E0E0;border-radius:12px;padding:16px;"><div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">'+l+'</div><div style="font-size:28px;font-weight:700;color:'+c+';">'+v+'</div></div>'; }
+  const funnelHtml = statusList.map(s=>{ const n=leads.filter(l=>l.status===s).length; const pct=Math.round(n/maxF*100); return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><div style="font-size:12px;color:#666;width:120px;flex-shrink:0;">'+s+'</div><div style="flex:1;height:22px;background:#F0F0F0;border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+(funnelColors[s]||'#999')+';border-radius:4px;display:flex;align-items:center;padding-left:8px;">'+(n>0?'<span style="font-size:11px;font-weight:700;color:#fff;">'+n+'</span>':'')+'</div></div><div style="font-size:13px;font-weight:600;width:24px;text-align:right;">'+n+'</div></div>'; }).join('');
+  const oriCount = {}; leads.forEach(l=>oriCount[l.origem||'Não informado']=(oriCount[l.origem||'Não informado']||0)+1);
+  const origemHtml = Object.entries(oriCount).sort((a,b)=>b[1]-a[1]).map(([o,n])=>'<div style="margin-bottom:7px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>'+o+'</span><span style="font-weight:600;">'+n+' ('+(total?Math.round(n/total*100):0)+'%)</span></div><div style="height:7px;background:#F0F0F0;border-radius:4px;overflow:hidden;"><div style="width:'+(total?Math.round(n/total*100):0)+'%;height:100%;background:#378ADD;border-radius:4px;"></div></div></div>').join('');
+  const corrCount = {}; leads.forEach(l=>{ if(l.corretor&&l.corretor!=='-') corrCount[l.corretor]=(corrCount[l.corretor]||0)+1; });
+  const corretorHtml = Object.entries(corrCount).sort((a,b)=>b[1]-a[1]).map(([c,n])=>'<div style="margin-bottom:7px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>'+c+'</span><span style="font-weight:600;">'+n+' ('+(total?Math.round(n/total*100):0)+'%)</span></div><div style="height:7px;background:#F0F0F0;border-radius:4px;overflow:hidden;"><div style="width:'+(total?Math.round(n/total*100):0)+'%;height:100%;background:#1D9E75;border-radius:4px;"></div></div></div>').join('');
+  const pendentes = leads.filter(l=>l.proximo&&!['Fechado','Sem interesse','Sem interação'].includes(l.status)).sort((a,b)=>toISO(a.proximo).localeCompare(toISO(b.proximo)));
+  const retornosHtml = pendentes.length ? '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#F7F7F7;"><th style="text-align:left;padding:8px 10px;font-size:11px;color:#666;border-bottom:1px solid #E0E0E0;">Nome</th><th style="text-align:left;padding:8px 10px;font-size:11px;color:#666;border-bottom:1px solid #E0E0E0;">Status</th><th style="text-align:left;padding:8px 10px;font-size:11px;color:#666;border-bottom:1px solid #E0E0E0;">Corretor</th><th style="text-align:left;padding:8px 10px;font-size:11px;color:#666;border-bottom:1px solid #E0E0E0;">Próx. contato</th><th style="text-align:left;padding:8px 10px;font-size:11px;color:#666;border-bottom:1px solid #E0E0E0;">Situação</th></tr></thead><tbody>'+pendentes.map(l=>'<tr style="'+(diffDias(l.proximo)<0?'background:#FEF3EC;':diffDias(l.proximo)===0?'background:#FFFBEA;':'')+'" ><td style="padding:8px 10px;border-bottom:1px solid #E0E0E0;font-weight:600;">'+l.nome+'</td><td style="padding:8px 10px;border-bottom:1px solid #E0E0E0;">'+bdg(l.status)+'</td><td style="padding:8px 10px;border-bottom:1px solid #E0E0E0;font-size:12px;">'+l.corretor+'</td><td style="padding:8px 10px;border-bottom:1px solid #E0E0E0;font-size:12px;">'+toBR(l.proximo)+'</td><td style="padding:8px 10px;border-bottom:1px solid #E0E0E0;">'+pLabel(l.proximo)+'</td></tr>').join('')+'</tbody></table>' : '<p style="font-size:13px;color:#666;text-align:center;padding:20px;">Nenhum retorno agendado.</p>';
+  const leadsComFb = {}; leads.forEach(l=>{ const hist=l.historico&&l.historico.length?l.historico:(l.feedback?[{texto:l.feedback,data:l.data,corretor:l.corretor}]:[]); if(!hist.length)return; leadsComFb[l.phone]={nome:l.nome,phone:l.phone,status:l.status,corretor:l.corretor,hist}; });
+  const feedbackHtml = Object.values(leadsComFb).length ? Object.values(leadsComFb).map(g=>'<div style="margin-bottom:14px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><span style="font-weight:600;font-size:13px;">'+g.nome+'</span><span style="font-family:monospace;font-size:11px;color:#666;">'+g.phone+'</span>'+bdg(g.status)+'<span style="font-size:12px;color:#666;">· '+g.corretor+'</span></div>'+[...g.hist].reverse().map(r=>'<div style="padding:8px 10px;background:#F7F7F7;border-radius:8px;margin-bottom:4px;border-left:3px solid #7F77DD;"><div style="font-size:11px;color:#666;margin-bottom:2px;">📅 '+(r.data||'')+(r.hora?' · '+r.hora:'')+(r.corretor?' · '+r.corretor:'')+'</div><div style="font-size:13px;">'+r.texto+'</div></div>').join('')+'</div>').join('<hr style="border:none;border-top:1px solid #E0E0E0;margin:12px 0;">') : '<p style="font-size:13px;color:#666;text-align:center;padding:20px;">Nenhum feedback registrado.</p>';
+  const todosHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#F7F7F7;">'+'#,Nome,Telefone,Status,Corretor,Origem,Próx. contato,Data'.split(',').map(h=>'<th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;color:#666;border-bottom:1px solid #E0E0E0;">'+h+'</th>').join('')+'</tr></thead><tbody>'+leads.map((l,i)=>'<tr><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;color:#999;">'+(i+1)+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;font-weight:600;">'+l.nome+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;font-family:monospace;">'+l.phone+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;">'+bdg(l.status)+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;">'+l.corretor+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;">'+(l.origem||'-')+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;">'+(l.proximo?pLabel(l.proximo):'-')+'</td><td style="padding:7px 10px;border-bottom:1px solid #E0E0E0;white-space:nowrap;">'+l.data+'</td></tr>').join('')+'</tbody></table>';
+  const alertasHtml = (atrasados>0?'<div style="padding:10px 14px;border-radius:8px;font-size:13px;background:#FCEBEB;color:#A32D2D;border:1px solid #F09595;margin-bottom:10px;">⚠️ <strong>'+atrasados+' lead(s)</strong> com retorno atrasado</div>':'')+(hojeRet>0?'<div style="padding:10px 14px;border-radius:8px;font-size:13px;background:#FAEEDA;color:#854F0B;border:1px solid #FAC775;margin-bottom:10px;">🔔 <strong>'+hojeRet+' lead(s)</strong> com retorno para hoje</div>':'');
+  const leadsJSON = JSON.stringify(leads);
+  const xurl = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const excelFn = [
+    'document.getElementById("btnP").addEventListener("click",function(){window.print();});',
+    'document.getElementById("btnE").addEventListener("click",function(){',
+    '  if(!window.XLSX){alert("Aguarde 2 segundos e tente novamente.");return;}',
+    '  var wb=XLSX.utils.book_new();var tot=_L.length;',
+    '  var sl=["Novo","Contato feito","Visita agendada","Proposta enviada","Fechado","Sem interacao","Sem interesse"];',
+    '  var res=[["RELATORIO MORADAS DA SERRA"],["Total",tot],["Fechados",_L.filter(function(x){return x.status==="Fechado";}).length],[],["FUNIL"],["Status","Qtd","%"]];',
+    '  sl.forEach(function(s){var n=_L.filter(function(x){return x.status===s;}).length;res.push([s,n,tot?Math.round(n/tot*100)+"%":"0%"]);});',
+    '  var w1=XLSX.utils.aoa_to_sheet(res);w1["!cols"]=[{wch:30},{wch:12},{wch:8}];XLSX.utils.book_append_sheet(wb,w1,"Resumo");',
+    '  var hd=["#","Nome","Telefone","Status","Corretor","Origem","Orcamento","Prox contato","Data"];',
+    '  var rws=_L.map(function(l,i){return[i+1,l.nome,l.phone,l.status,l.corretor,l.origem||"-",l.orcamento||"-",l.proximo||"-",l.data];});',
+    '  var w2=XLSX.utils.aoa_to_sheet([hd].concat(rws));w2["!cols"]=[{wch:4},{wch:25},{wch:15},{wch:15},{wch:15},{wch:12},{wch:14},{wch:12},{wch:12}];XLSX.utils.book_append_sheet(wb,w2,"Leads");',
+    '  var hf=["Nome","Telefone","Status","Corretor","Data","Feedback"];var rf=[];',
+    '  _L.forEach(function(l){var h=l.historico&&l.historico.length?l.historico:(l.feedback?[{texto:l.feedback,data:l.data,corretor:l.corretor}]:[]);h.forEach(function(r){rf.push([l.nome,l.phone,l.status,r.corretor||l.corretor,r.data||l.data,r.texto||""]);});});',
+    '  if(rf.length){var w3=XLSX.utils.aoa_to_sheet([hf].concat(rf));w3["!cols"]=[{wch:25},{wch:15},{wch:15},{wch:15},{wch:12},{wch:50}];XLSX.utils.book_append_sheet(wb,w3,"Historico");}',
+    '  XLSX.writeFile(wb,"relatorio_moradas_"+new Date().toISOString().slice(0,10)+".xlsx");',
+    '});'
+  ].join('');
+  const doc = [
+    '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1.0">',
+    '<title>Painel Loteador - Moradas da Serra</title>',
+    '<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#F5F5F5;color:#1A1A1A;font-size:14px;}.main{max-width:960px;margin:0 auto;padding:20px 16px;}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}footer{text-align:center;padding:20px;font-size:11px;color:#999;}@media print{.noprint{display:none!important;}}@media(max-width:600px){.metrics{grid-template-columns:1fr 1fr;}}</style>',
+    '</head><body>',
+    '<div style="background:linear-gradient(135deg,#534AB7,#7F77DD);padding:20px 24px;color:#fff;">',
+    '<h1 style="font-size:18px;font-weight:700;">Moradas da Serra</h1>',
+    '<div style="font-size:13px;opacity:0.8;margin-top:2px;">Painel de acompanhamento de leads</div>',
+    '<div style="font-size:11px;opacity:0.65;margin-top:6px;">Atualizado em '+geradoEm+' · '+total+' leads</div></div>',
+    '<div class="main">',
+    alertasHtml,
+    '<div class="metrics">'+metric('Total leads',total,'#1A1A1A')+metric('Novos',novos,'#185FA5')+metric('Visitas',visitas,'#534AB7')+metric('Fechados',fechados,'#1D9E75')+'</div>',
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">'+card('📊 Funil de vendas',funnelHtml)+card('📣 Por origem',origemHtml)+'</div>',
+    card('👤 Por corretor',corretorHtml),
+    card('🔔 Retornos pendentes',retornosHtml),
+    card('📋 Histórico de atendimentos',feedbackHtml),
+    card('👥 Todos os leads','<div style="overflow-x:auto;">'+todosHtml+'</div>'),
+    '<div class="noprint" style="text-align:center;padding:16px;display:flex;gap:10px;justify-content:center;">',
+    '<button id="btnP" style="padding:9px 18px;border-radius:8px;border:1px solid #E0E0E0;background:#fff;color:#1A1A1A;font-size:13px;font-weight:500;cursor:pointer;">🖨 Imprimir / PDF</button>',
+    '<button id="btnE" style="padding:9px 18px;border-radius:8px;border:1px solid #7F77DD;background:#7F77DD;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">📊 Exportar Excel</button>',
+    '</div>',
+    '<footer>Painel somente leitura · Moradas da Serra · Trevizan Consultoria Imobiliária</footer>',
+    '</div>',
+    '<scr'+'ipt src="'+xurl+'"></sc'+'ript>',
+    '<scr'+'ipt>var _L='+leadsJSON+';'+excelFn+'</sc'+'ript>',
+    '</body></html>'
+  ].join('');
+  const blob = new Blob([doc], {type:'text/html;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'painel_loteador_'+new Date().toISOString().slice(0,10)+'.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+function exportExcel() {
+  if (!leads.length) { alert('Nenhum lead para exportar.'); return; }
+  const wb = XLSX.utils.book_new();
+  const total = leads.length;
+  const fechados = leads.filter(l=>l.status==='Fechado').length;
+  const conv = total ? Math.round(fechados/total*100) : 0;
+  const atrasados = leads.filter(l=>l.proximo&&diffDias(l.proximo)<0&&!['Fechado','Sem interação','Sem interesse'].includes(l.status)).length;
+  const dataGeracao = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const statusList = ['Novo','Contato feito','Visita agendada','Proposta enviada','Fechado','Sem interação','Sem interesse'];
+
+  // Paleta de cores
+  const COR_TITULO    = '534AB7';
+  const COR_SUBTIT    = '7F77DD';
+  const COR_HDR_TXT   = 'FFFFFF';
+  const COR_ZEBRA1    = 'F4F3FD';
+  const COR_ZEBRA2    = 'FFFFFF';
+  const COR_BORDA     = 'C5C2EE';
+  const statusBg = {'Novo':'BFD7ED','Contato feito':'FAE2B0','Visita agendada':'D9D7F8','Proposta enviada':'D5EAB8','Fechado':'B8EDD8','Sem interação':'E5E5E5','Sem interesse':'FDE8D0'};
+  const statusFg = {'Novo':'185FA5','Contato feito':'854F0B','Visita agendada':'534AB7','Proposta enviada':'3B6D11','Fechado':'0F6E56','Sem interação':'555555','Sem interesse':'C2410C'};
+
+  function ap(ws, ref, s) { if(!ws[ref]) ws[ref]={t:'s',v:''}; ws[ref].s=s; }
+  function borda(color) { return {top:{style:'thin',color:{rgb:color}},bottom:{style:'thin',color:{rgb:color}},left:{style:'thin',color:{rgb:color}},right:{style:'thin',color:{rgb:color}}}; }
+
+  function sHdr(bg, sz) { return {font:{bold:true,sz:sz||11,color:{rgb:COR_HDR_TXT}},fill:{fgColor:{rgb:bg||COR_TITULO}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:borda(bg||COR_TITULO)}; }
+  function sCell(bg, fg, bold, wrap, align) { return {font:{bold:bold||false,sz:10,color:{rgb:fg||'1A1A1A'}},fill:{fgColor:{rgb:bg||COR_ZEBRA2}},alignment:{horizontal:align||'left',vertical:'center',wrapText:wrap||false},border:borda('E0E0E0')}; }
+  function sStatus(s) { return {font:{bold:true,sz:10,color:{rgb:statusFg[s]||'555555'}},fill:{fgColor:{rgb:statusBg[s]||'F3F3F3'}},alignment:{horizontal:'center',vertical:'center'},border:borda('E0E0E0')}; }
+  function sTitulo(bg, sz) { return {font:{bold:true,sz:sz||13,color:{rgb:COR_HDR_TXT}},fill:{fgColor:{rgb:bg||COR_TITULO}},alignment:{horizontal:'center',vertical:'center'}}; }
+  function sSecao() { return {font:{bold:true,sz:11,color:{rgb:COR_TITULO}},fill:{fgColor:{rgb:'EEEDFE'}},alignment:{horizontal:'left',vertical:'center'},border:borda(COR_BORDA)}; }
+  function sKV(key) { return key ? {font:{bold:true,sz:10,color:{rgb:'534AB7'}},fill:{fgColor:{rgb:'F4F3FD'}},alignment:{horizontal:'left',vertical:'center'},border:borda('E0E0E0')} : {font:{sz:10,color:{rgb:'1A1A1A'}},fill:{fgColor:{rgb:COR_ZEBRA2}},alignment:{horizontal:'right',vertical:'center'},border:borda('E0E0E0')}; }
+
+  // ===== ABA 1: RESUMO =====
+  const wsR = XLSX.utils.aoa_to_sheet([]);
+  const oriCount = {}; leads.forEach(l=>oriCount[l.origem||'Não informado']=(oriCount[l.origem||'Não informado']||0)+1);
+  const corrCount = {}; leads.forEach(l=>{ if(l.corretor&&l.corretor!=='-') corrCount[l.corretor]=(corrCount[l.corretor]||0)+1; });
+
+  let row = 0;
+  function addRow(ws, data, ri) { XLSX.utils.sheet_add_aoa(ws, [data], {origin:{r:ri,c:0}}); }
+
+  addRow(wsR,['RELATÓRIO DE LEADS — MORADAS DA SERRA','',''],row++);
+  addRow(wsR,['Trevizan Consultoria Imobiliária','',''],row++);
+  addRow(wsR,['Gerado em: '+dataGeracao,'',''],row++);
+  addRow(wsR,['','',''],row++);
+  addRow(wsR,['RESUMO GERAL','',''],row++);
+  const r5=row-1;
+  addRow(wsR,['Total de leads',total,''],row++);
+  addRow(wsR,['Fechamentos',fechados,''],row++);
+  addRow(wsR,['Taxa de conversão',conv+'%',''],row++);
+  addRow(wsR,['Retornos atrasados',atrasados,''],row++);
+  addRow(wsR,['','',''],row++);
+  addRow(wsR,['FUNIL DE VENDAS','',''],row++);
+  const r11=row-1;
+  addRow(wsR,['Status','Leads','% do total'],row++);
+  const r12=row-1;
+  statusList.forEach(s=>{ const n=leads.filter(l=>l.status===s).length; addRow(wsR,[s,n,total?Math.round(n/total*100)+'%':'0%'],row++); });
+  addRow(wsR,['','',''],row++);
+  addRow(wsR,['POR ORIGEM','',''],row++);
+  const rOri=row-1;
+  addRow(wsR,['Origem','Leads','% do total'],row++);
+  const rOriH=row-1;
+  Object.entries(oriCount).sort((a,b)=>b[1]-a[1]).forEach(([o,n])=>{ addRow(wsR,[o,n,total?Math.round(n/total*100)+'%':'0%'],row++); });
+  addRow(wsR,['','',''],row++);
+  addRow(wsR,['POR CORRETOR','',''],row++);
+  const rCor=row-1;
+  addRow(wsR,['Corretor','Leads','% do total'],row++);
+  const rCorH=row-1;
+  Object.entries(corrCount).sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>{ addRow(wsR,[c,n,total?Math.round(n/total*100)+'%':'0%'],row++); });
+
+  wsR['!cols'] = [{wch:34},{wch:16},{wch:14}];
+  wsR['!rows'] = [{hpt:30},{hpt:18},{hpt:16}];
+  wsR['!merges'] = [{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}},{s:{r:2,c:0},e:{r:2,c:2}},{s:{r:r5,c:0},e:{r:r5,c:2}},{s:{r:r11,c:0},e:{r:r11,c:2}},{s:{r:rOri,c:0},e:{r:rOri,c:2}},{s:{r:rCor,c:0},e:{r:rCor,c:2}}];
+  ap(wsR,'A1',sTitulo(COR_TITULO,14));
+  ap(wsR,'A2',sTitulo(COR_SUBTIT,11));
+  ap(wsR,'A3',{font:{sz:10,color:{rgb:COR_TITULO}},fill:{fgColor:{rgb:'EEEDFE'}},alignment:{horizontal:'center'}});
+  [r5,r11,rOri,rCor].forEach(r=>{ const ref='A'+(r+1); ap(wsR,ref,sSecao()); });
+  [r12,rOriH,rCorH].forEach(r=>{ ['A','B','C'].forEach(c=>ap(wsR,c+(r+1),sHdr())); });
+  // Estilizar linhas de dados
+  for(let r2=0;r2<row;r2++){
+    const ref0=XLSX.utils.encode_cell({r:r2,c:0});
+    if(wsR[ref0]&&wsR[ref0].s) continue; // já estilizado
+    const z=r2%2===0?COR_ZEBRA1:COR_ZEBRA2;
+    ['A','B','C'].forEach((c,ci)=>{ const ref=c+(r2+1); if(wsR[ref]&&!wsR[ref].s) ap(wsR,ref,sCell(z,'1A1A1A',false,false,ci===1?'center':'left')); });
+  }
+  XLSX.utils.book_append_sheet(wb, wsR, '📊 Resumo');
+
+  // ===== ABA 2: TODOS OS LEADS =====
+  const lHdr = ['#','Nome','Telefone','Status','Corretor','Origem','Tamanho','Orçamento','Data contato','Próximo retorno','Observação'];
+  const lRows = leads.map((l,i)=>[i+1,l.nome,l.phone,l.status,l.corretor,l.origem||'-',l.tamanho||'-',l.orcamento||'-',l.data,toBR(l.proximo)||'-',l.obs||'-']);
+  const wsL = XLSX.utils.aoa_to_sheet([lHdr,...lRows]);
+  wsL['!cols'] = [{wch:4},{wch:26},{wch:16},{wch:16},{wch:16},{wch:13},{wch:13},{wch:14},{wch:13},{wch:14},{wch:30}];
+  wsL['!rows'] = [{hpt:22}];
+  wsL['!autofilter'] = {ref:'A1:K'+(lRows.length+1)};
+  lHdr.forEach((_,ci)=>{ ap(wsL,XLSX.utils.encode_cell({r:0,c:ci}),sHdr()); });
+  lRows.forEach((row,ri)=>{
+    const z=ri%2===0?COR_ZEBRA1:COR_ZEBRA2;
+    const atras = row[9]&&row[9]!=='-'&&diffDias(toISO(row[9]))<0;
+    row.forEach((val,ci)=>{
+      const ref=XLSX.utils.encode_cell({r:ri+1,c:ci});
+      if(ci===3) ap(wsL,ref,sStatus(val));
+      else if(atras) ap(wsL,ref,{...sCell('FFEBE6','7A2000',false,ci===10),border:borda('F09595')});
+      else ap(wsL,ref,sCell(z,'1A1A1A',false,ci===10,ci===0||ci===7?'center':'left'));
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, wsL, '👥 Todos os Leads');
+
+  // ===== ABA 3: RETORNOS =====
+  const pendentes = leads.filter(l=>l.proximo&&!['Fechado','Sem interesse','Sem interação'].includes(l.status)).sort((a,b)=>toISO(a.proximo).localeCompare(toISO(b.proximo)));
+  const rHdr = ['Nome','Telefone','Status','Corretor','Próximo contato','Dias','Situação'];
+  const rRows = pendentes.map(l=>{ const pi=prazoInfo(l.proximo); const d=diffDias(l.proximo); return [l.nome,l.phone,l.status,l.corretor,toBR(l.proximo),d!==null?d:'-',pi?(pi.tipo==='atrasado'?'⚠ Atrasado '+Math.abs(d)+'d':pi.tipo==='hoje'?'🔔 Hoje!':'✅ Em '+d+'d'):'-']; });
+  const wsRet = XLSX.utils.aoa_to_sheet([rHdr,...rRows]);
+  wsRet['!cols'] = [{wch:26},{wch:16},{wch:16},{wch:16},{wch:16},{wch:8},{wch:18}];
+  wsRet['!rows'] = [{hpt:22}];
+  wsRet['!autofilter'] = {ref:'A1:G'+(rRows.length+1)};
+  rHdr.forEach((_,ci)=>{ ap(wsRet,XLSX.utils.encode_cell({r:0,c:ci}),sHdr()); });
+  rRows.forEach((row,ri)=>{
+    const d=pendentes[ri]?diffDias(pendentes[ri].proximo):null;
+    const bg=d!==null?(d<0?'FFEBE6':d===0?'FFFBEA':'F0FDF4'):COR_ZEBRA2;
+    row.forEach((val,ci)=>{
+      const ref=XLSX.utils.encode_cell({r:ri+1,c:ci});
+      if(ci===2) ap(wsRet,ref,sStatus(val));
+      else ap(wsRet,ref,sCell(bg,'1A1A1A',false,false,ci===5?'center':'left'));
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, wsRet, '🔔 Retornos');
+
+  // ===== ABA 4: HISTÓRICO =====
+  const fHdr = ['Nome','Telefone','Status','Corretor','Data atendimento','Feedback do atendimento'];
+  const fRows = [];
+  leads.forEach(l=>{ const hist=l.historico&&l.historico.length?l.historico:(l.feedback?[{texto:l.feedback,data:l.data,corretor:l.corretor}]:[]); hist.forEach(h=>fRows.push([l.nome,l.phone,l.status,h.corretor||l.corretor,h.data||l.data,h.texto||''])); });
+  if(fRows.length){
+    const wsF=XLSX.utils.aoa_to_sheet([fHdr,...fRows]);
+    wsF['!cols']=[{wch:26},{wch:16},{wch:16},{wch:16},{wch:16},{wch:55}];
+    wsF['!rows']=[{hpt:22}];
+    wsF['!autofilter']={ref:'A1:F'+(fRows.length+1)};
+    fHdr.forEach((_,ci)=>{ ap(wsF,XLSX.utils.encode_cell({r:0,c:ci}),sHdr()); });
+    fRows.forEach((row,ri)=>{ const z=ri%2===0?COR_ZEBRA1:COR_ZEBRA2; row.forEach((val,ci)=>{ const ref=XLSX.utils.encode_cell({r:ri+1,c:ci}); if(ci===2) ap(wsF,ref,sStatus(val)); else ap(wsF,ref,sCell(z,'1A1A1A',false,ci===5)); }); });
+    XLSX.utils.book_append_sheet(wb,wsF,'📋 Histórico');
+  }
+
+  XLSX.writeFile(wb, 'relatorio_moradas_da_serra_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+// ---- Envio individual e em lote ----
+let envioLeadId = null; // para envio individual
+let envioLoteIds = [];  // para envio em lote
+
+function abrirModalEnvioUnico(id) {
+  envioLeadId = id;
+  envioLoteIds = [];
+  abrirModalEnvio([id]);
+}
+
+function abrirModalEnvioLote() {
+  const checks = document.querySelectorAll('.lead-check:checked');
+  envioLoteIds = Array.from(checks).map(c => parseInt(c.dataset.id));
+  if (!envioLoteIds.length) return;
+  envioLeadId = null;
+  abrirModalEnvio(envioLoteIds);
+}
+
+function abrirModalEnvio(ids) {
+  if (!corretores.filter(c=>c.ativo!==false).length) { alert('Cadastre corretores na aba Corretores primeiro.'); return; }
+  const ativos = corretores.filter(c => c.ativo !== false);
+  const qtd = ids.length;
+  document.getElementById('modal-envio-checks').innerHTML =
+    `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${qtd} lead(s) selecionado(s)</div>` +
+    ativos.map(c => `
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius);cursor:pointer;font-size:13px;">
+        <input type="checkbox" value="${c.nome}" style="width:16px;height:16px;accent-color:var(--purple);" checked>
+        <span style="font-weight:500;">${c.nome}</span>
+        <span style="font-size:11px;color:var(--text-muted);font-family:monospace;">${c.fone||'sem número'}</span>
+      </label>`).join('');
+  document.getElementById('modal-envio').classList.add('open');
+}
+
+function closeModalEnvio() { document.getElementById('modal-envio').classList.remove('open'); }
+
+function confirmarEnvioLead() {
+  const checks = document.querySelectorAll('#modal-envio-checks input[type=checkbox]:checked');
+  const nomes = Array.from(checks).map(c => c.value);
+  if (!nomes.length) { alert('Selecione ao menos um corretor.'); return; }
+  const ids = envioLoteIds.length ? envioLoteIds : (envioLeadId ? [envioLeadId] : []);
+  closeModalEnvio();
+  let delay = 0;
+  ids.forEach(id => {
+    const lead = leads.find(l => l.id === id);
+    if (!lead) return;
+    nomes.forEach(nome => {
+      const cor = corretores.find(c => c.nome === nome);
+      if (cor && cor.fone) {
+        setTimeout(() => enviarWhatsAppCorretor(cor, lead), delay);
+        delay += 1500;
+      }
+    });
+  });
+  desmarcarTodos();
+}
+
+function toggleTodos(el) {
+  document.querySelectorAll('.lead-check').forEach(c => c.checked = el.checked);
+  atualizarBulkBar();
+}
+
+function atualizarBulkBar() {
+  const checks = document.querySelectorAll('.lead-check:checked');
+  const bar = document.getElementById('bulk-bar');
+  if (checks.length > 0) {
+    bar.style.display = 'flex';
+    document.getElementById('bulk-count').textContent = checks.length + ' lead(s) selecionado(s)';
+  } else {
+    bar.style.display = 'none';
+  }
+  const all = document.querySelectorAll('.lead-check');
+  const checkAll = document.getElementById('check-all');
+  if (checkAll) checkAll.checked = checks.length === all.length && all.length > 0;
+}
+
+function desmarcarTodos() {
+  document.querySelectorAll('.lead-check').forEach(c => c.checked = false);
+  const checkAll = document.getElementById('check-all');
+  if (checkAll) checkAll.checked = false;
+  document.getElementById('bulk-bar').style.display = 'none';
+}
+
+function toggleEnvio() {
+  const area = document.getElementById('envio-corretores');
+  const ativos = corretores.filter(c => c.ativo !== false);
+  if (!ativos.length) { alert('Cadastre corretores na aba Corretores primeiro.'); return; }
+  const visible = area.style.display !== 'none';
+  if (visible) {
+    area.style.display = 'none';
+  } else {
+    // render checkboxes
+    document.getElementById('checkboxes-corretores').innerHTML = ativos.map((c,i) => `
+      <label style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" value="${c.nome}" style="width:15px;height:15px;accent-color:var(--purple);" checked>
+        ${c.nome}
+      </label>`).join('');
+    // add confirm button
+    document.getElementById('checkboxes-corretores').innerHTML += `
+      <button class="btn btn-primary" onclick="salvarEEnviarSelecionados()" style="margin-top:2px;">
+        ✅ Salvar e enviar para selecionados
+      </button>`;
+    area.style.display = 'block';
+  }
+}
+
+function salvarEEnviarSelecionados() {
+  const checks = document.querySelectorAll('#checkboxes-corretores input[type=checkbox]:checked');
+  const selecionados = Array.from(checks).map(c => c.value);
+  if (!selecionados.length) { alert('Selecione ao menos um corretor.'); return; }
+  // save lead first
+  const phone = document.getElementById('phone-formatted').textContent;
+  if (!phone) { alert('Extraia o número do lead primeiro.'); return; }
+  const dataVal = document.getElementById('new-data').value;
+  const proxVal = document.getElementById('new-proximo').value;
+  const corretorSel = selecionados[0]; // principal = primeiro selecionado
+  const feedbackTxt = document.getElementById('new-feedback').value || '';
+  const hist = feedbackTxt ? [{ texto: feedbackTxt, data: new Date().toLocaleDateString('pt-BR'), hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), corretor: corretorSel }] : [];
+  const lead = {
+    id: Date.now(),
+    phone, raw: document.getElementById('phone-raw').textContent,
+    nome: document.getElementById('new-nome').value || 'Sem nome',
+    origem: document.getElementById('new-origem').value,
+    empreendimento: document.getElementById('new-emp').value || 'Moradas da Serra',
+    status: document.getElementById('new-status').value,
+    corretor: corretorSel,
+    tamanho: document.getElementById('new-tamanho').value || '-',
+    orcamento: document.getElementById('new-orcamento').value || '-',
+    obs: document.getElementById('new-obs').value || '',
+    feedback: feedbackTxt,
+    historico: hist,
+    data: dataVal ? toBR(dataVal) : new Date().toLocaleDateString('pt-BR'),
+    proximo: proxVal || '',
+    ts: Date.now()
+  };
+  leads.unshift(lead);
+  saveAll();
+  document.getElementById('save-alert').style.display = 'flex';
+  document.getElementById('wainput').value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('envio-corretores').style.display = 'none';
+  ['new-nome','new-obs','new-feedback'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('new-corretor').value = '';
+  document.getElementById('new-data').value = '';
+  document.getElementById('new-proximo').value = '';
+  setTimeout(()=>document.getElementById('save-alert').style.display='none', 3000);
+  // enviar para cada selecionado em sequência com delay para o browser não bloquear
+  selecionados.forEach((nome, i) => {
+    const corObj = corretores.find(c => c.nome === nome);
+    if (corObj && corObj.fone) {
+      setTimeout(() => enviarWhatsAppCorretor(corObj, lead), i * 1500);
+    }
+  });
+}
+</script>
+</body>
+</html>
