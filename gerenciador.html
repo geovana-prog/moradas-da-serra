@@ -608,29 +608,41 @@ function saveCorretores() { localStorage.setItem('corretores_v1', JSON.stringify
 // Helpers de data
 function hoje() { return new Date().toISOString().slice(0,10); }
 function toISO(ddmmyyyy) {
-  if (!ddmmyyyy) return '';
-  if (ddmmyyyy.includes('-')) return ddmmyyyy; // já é ISO
-  const p = ddmmyyyy.split('/');
-  return p.length===3 ? p[2]+'-'+p[1]+'-'+p[0] : '';
+  if (!ddmmyyyy || ddmmyyyy==='-' || ddmmyyyy==='undefined' || ddmmyyyy==='null') return '';
+  ddmmyyyy = String(ddmmyyyy).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ddmmyyyy)) return ddmmyyyy;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(ddmmyyyy)) {
+    const p = ddmmyyyy.split('/');
+    return p[2]+'-'+p[1]+'-'+p[0];
+  }
+  return '';
 }
 function toBR(iso) {
-  if (!iso) return '';
-  if (iso.includes('/')) return iso;
-  const p = iso.split('-');
-  return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : '';
+  if (!iso || iso==='-' || iso==='undefined' || iso==='null') return '';
+  iso = String(iso).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) return iso;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const p = iso.split('-');
+    return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  return '';
 }
 function diffDias(isoDate) {
-  if (!isoDate) return null;
-  const d = new Date(isoDate+'T00:00:00');
+  const iso = toISO(isoDate);
+  if (!iso) return null;
+  const d = new Date(iso+'T00:00:00');
   const h = new Date(hoje()+'T00:00:00');
+  if (isNaN(d.getTime())) return null;
   return Math.round((d - h) / 86400000);
 }
-function prazoInfo(isoDate) {
-  if (!isoDate) return null;
-  const diff = diffDias(isoDate);
+function prazoInfo(val) {
+  if (!val || val==='-' || val==='undefined' || val==='null') return null;
+  const diff = diffDias(val);
+  if (diff === null || isNaN(diff)) return null;
+  const isoVal = toISO(val);
   if (diff < 0) return { label: `${Math.abs(diff)}d atrasado`, cls: 'prazo-atrasado', tipo: 'atrasado' };
   if (diff === 0) return { label: 'Hoje!', cls: 'prazo-hoje', tipo: 'hoje' };
-  return { label: `em ${diff}d (${toBR(isoDate)})`, cls: 'prazo-futuro', tipo: 'futuro' };
+  return { label: `em ${diff}d (${toBR(isoVal)})`, cls: 'prazo-futuro', tipo: 'futuro' };
 }
 function diasSemFeedback(lead) {
   if (lead.historico && lead.historico.length) return 0;
