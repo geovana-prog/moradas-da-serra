@@ -428,7 +428,10 @@
   <!-- CORRETORES -->
   <div id="tab-corretores" class="section">
     <div class="card">
-      <div class="card-title">👤 Cadastro de corretores</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>👤 Cadastro de corretores</span>
+        <button class="btn" style="font-size:12px;padding:6px 12px;color:var(--amber-dark);" onclick="recuperarCorretoresDosLeads()" title="Recria a lista a partir dos nomes já usados nos leads">🔄 Recuperar dos leads</button>
+      </div>
       <div class="row row-3" style="margin-bottom:12px;">
         <div class="input-group"><label>Nome</label><input type="text" id="cor-nome" placeholder="Nome do corretor"></div>
         <div class="input-group"><label>WhatsApp (com DDD)</label><input type="text" id="cor-fone" placeholder="(15) 99999-9999"></div>
@@ -1314,6 +1317,22 @@ function adicionarCorretor() {
   document.getElementById('cor-fone').value = '';
   renderCorretores();
   popularSelectCorretores();
+}
+
+function recuperarCorretoresDosLeads() {
+  const nomesUnicos = [...new Set(leads.map(l => (l.corretor||'').trim()).filter(n => n && n !== '-'))];
+  if (!nomesUnicos.length) { alert('Nenhum nome de corretor encontrado nos leads.'); return; }
+  let adicionados = 0;
+  nomesUnicos.forEach(nome => {
+    if (!corretores.find(c => c.nome === nome)) {
+      corretores.push({ nome, fone: '', ativo: true });
+      adicionados++;
+    }
+  });
+  saveCorretores();
+  renderCorretores();
+  popularSelectCorretores();
+  alert(`✅ ${adicionados} corretor(es) recuperado(s): ${nomesUnicos.join(', ')}\n\nAgora complete o WhatsApp de cada um clicando em editar.`);
 }
 
 function removerCorretor(idx) {
