@@ -43,6 +43,19 @@
   .status-interesse { background: #FEF3EC; color: #C2410C; }
   footer { text-align: center; padding: 20px; font-size: 11px; color: var(--muted); }
   #loading { text-align: center; padding: 40px; color: var(--muted); }
+  .ml-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: box-shadow 0.15s; }
+  .ml-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-color: var(--purple); }
+  .ml-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .ml-card-nome { font-size: 13px; font-weight: 600; }
+  .ml-card-phone { font-size: 11px; color: var(--muted); font-family: monospace; }
+  .ml-card-fb { font-size: 12px; color: var(--muted); margin-top: 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  .ml-card-prazo { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px; }
+  .ml-prazo-atrasado { background: var(--red-light); color: var(--red); }
+  .ml-prazo-hoje { background: var(--amber-light); color: var(--amber); }
+  .ml-empty { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+  .ml-filtros { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .ml-filtro-btn { padding: 5px 12px; border-radius: 100px; border: 1px solid var(--border); background: #fff; font-size: 11px; font-weight: 500; cursor: pointer; color: var(--muted); }
+  .ml-filtro-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -70,6 +83,15 @@
     </div>
   </div>
 
+  <!-- Meus leads (aparece quando digita o nome) -->
+  <div id="meus-leads-card" class="card" style="display:none;">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>📂 Meus leads</span>
+      <span id="meus-leads-count" style="font-size:12px;color:var(--muted);font-weight:400;"></span>
+    </div>
+    <div id="meus-leads-lista"></div>
+  </div>
+
   <!-- Passo 2: Buscar lead pelo número -->
   <div class="card">
     <div class="card-title">🔍 Buscar lead pelo número</div>
@@ -90,11 +112,16 @@
       <div class="input-group">
         <label>Status atual</label>
         <select id="novo-status">
-          <option>Novo</option>
-          <option>Contato feito</option>
-          <option>Visita agendada</option>
-          <option>Proposta enviada</option>
-          <option>Fechado</option>
+          <option>Qualificação</option>
+          <option>Follow 1</option>
+          <option>Follow 2</option>
+          <option>Follow 3</option>
+          <option>Atendimento Consultor</option>
+          <option>Agendamento Visita</option>
+          <option>Visita ao Plantão</option>
+          <option>Proposta Apresentada</option>
+          <option>Negociação/Decisão</option>
+          <option>Venda Ganha</option>
           <option>Sem interação</option>
           <option>Sem interesse</option>
         </select>
@@ -140,10 +167,113 @@ let leadAtual = null;
 
 // Restaurar nome do corretor
 const corretorSalvo = localStorage.getItem('corretor_nome_local');
-if (corretorSalvo) document.getElementById('corretor-nome').value = corretorSalvo;
+if (corretorSalvo) {
+  document.getElementById('corretor-nome').value = corretorSalvo;
+  setTimeout(() => buscarMeusLeads(corretorSalvo), 300);
+}
 
 function salvarCorretor() {
-  localStorage.setItem('corretor_nome_local', document.getElementById('corretor-nome').value);
+  const nome = document.getElementById('corretor-nome').value;
+  localStorage.setItem('corretor_nome_local', nome);
+  clearTimeout(window._mlTimeout);
+  window._mlTimeout = setTimeout(() => buscarMeusLeads(nome), 500);
+}
+
+const STATUS_ATIVO_ML = ['Qualificação','Follow 1','Follow 2','Follow 3','Atendimento Consultor','Agendamento Visita','Visita ao Plantão','Proposta Apresentada','Negociação/Decisão','Novo','Contato feito','Visita agendada','Proposta enviada'];
+const STATUS_FECHADO_ML = ['Venda Ganha','Fechado'];
+const STATUS_DESCARTADO_ML = ['Sem interação','Sem interesse'];
+let _meusLeadsCache = [];
+let _filtroAtual = 'ativos';
+
+function toISOml(br) {
+  if (!br || br==='-') return '';
+  if (br.includes('-')) return br;
+  const p = br.split('/');
+  return p.length===3 ? p[2]+'-'+p[1]+'-'+p[0] : '';
+}
+function diffDiasMl(val) {
+  const iso = toISOml(val);
+  if (!iso) return null;
+  const d = new Date(iso+'T00:00:00');
+  const h = new Date(new Date().toISOString().slice(0,10)+'T00:00:00');
+  return Math.round((d-h)/86400000);
+}
+
+async function buscarMeusLeads(nome) {
+  nome = (nome || '').trim();
+  const card = document.getElementById('meus-leads-card');
+  if (nome.length < 2) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  document.getElementById('meus-leads-lista').innerHTML = '<div class="ml-empty">🔄 Buscando...</div>';
+  try {
+    const snap = await leadsCol.get();
+    const todos = snap.docs.map(d => d.data());
+    const meus = todos.filter(l => (l.corretor||'').toLowerCase().trim() === nome.toLowerCase());
+    _meusLeadsCache = meus;
+    document.getElementById('meus-leads-count').textContent = meus.length + ' lead(s)';
+    renderMeusLeads();
+  } catch(e) {
+    document.getElementById('meus-leads-lista').innerHTML = '<div class="ml-empty">Erro ao buscar. Verifique a conexão.</div>';
+  }
+}
+
+function filtrarMeusLeads(tipo) {
+  _filtroAtual = tipo;
+  document.querySelectorAll('.ml-filtro-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('ml-btn-'+tipo).classList.add('active');
+  renderMeusLeads();
+}
+
+function renderMeusLeads() {
+  const ativos = _meusLeadsCache.filter(l => STATUS_ATIVO_ML.includes(l.status));
+  const fechados = _meusLeadsCache.filter(l => STATUS_FECHADO_ML.includes(l.status));
+  const descartados = _meusLeadsCache.filter(l => STATUS_DESCARTADO_ML.includes(l.status));
+
+  let pool = _filtroAtual === 'ativos' ? ativos : _filtroAtual === 'fechados' ? fechados : descartados;
+  pool = [...pool].sort((a,b) => {
+    const da = diffDiasMl(a.proximo), db = diffDiasMl(b.proximo);
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  });
+
+  const filtrosHtml = `<div class="ml-filtros">
+    <button class="ml-filtro-btn ${_filtroAtual==='ativos'?'active':''}" id="ml-btn-ativos" onclick="filtrarMeusLeads('ativos')">🟢 Ativos (${ativos.length})</button>
+    <button class="ml-filtro-btn ${_filtroAtual==='fechados'?'active':''}" id="ml-btn-fechados" onclick="filtrarMeusLeads('fechados')">🏆 Fechados (${fechados.length})</button>
+    <button class="ml-filtro-btn ${_filtroAtual==='descartados'?'active':''}" id="ml-btn-descartados" onclick="filtrarMeusLeads('descartados')">❌ Descartados (${descartados.length})</button>
+  </div>`;
+
+  if (!pool.length) {
+    document.getElementById('meus-leads-lista').innerHTML = filtrosHtml + '<div class="ml-empty">Nenhum lead nesta categoria</div>';
+    return;
+  }
+
+  document.getElementById('meus-leads-lista').innerHTML = filtrosHtml + pool.map(l => {
+    const hist = l.historico && l.historico.length ? l.historico : (l.feedback ? [{texto:l.feedback}] : []);
+    const ultFb = hist.length ? hist[hist.length-1].texto : 'Sem feedback ainda';
+    const d = diffDiasMl(l.proximo);
+    let prazoTag = '';
+    if (d !== null) {
+      if (d < 0) prazoTag = `<span class="ml-card-prazo ml-prazo-atrasado">⚠ ${Math.abs(d)}d atrasado</span>`;
+      else if (d === 0) prazoTag = `<span class="ml-card-prazo ml-prazo-hoje">🔔 Hoje</span>`;
+    }
+    return `<div class="ml-card" onclick="selecionarMeuLead('${l.phone}')">
+      <div class="ml-card-top">
+        <span class="ml-card-nome">${l.nome}</span>
+        <span class="badge ${statusClass(l.status)}">${l.status}</span>
+      </div>
+      <div class="ml-card-phone">${l.phone}</div>
+      <div class="ml-card-fb">${ultFb}</div>
+      ${prazoTag}
+    </div>`;
+  }).join('');
+}
+
+function selecionarMeuLead(phone) {
+  document.getElementById('busca-numero').value = phone;
+  buscarLead();
+  document.getElementById('lead-found').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function normalizar(num) {
@@ -155,7 +285,14 @@ function normalizar(num) {
 }
 
 function statusClass(s) {
-  const m = {'Novo':'status-novo','Contato feito':'status-contato','Visita agendada':'status-visita','Proposta enviada':'status-proposta','Fechado':'status-fechado','Sem interação':'status-sem','Sem interesse':'status-interesse'};
+  const m = {
+    'Qualificação':'status-novo','Follow 1':'status-contato','Follow 2':'status-contato','Follow 3':'status-contato',
+    'Atendimento Consultor':'status-visita','Agendamento Visita':'status-visita','Visita ao Plantão':'status-visita',
+    'Proposta Apresentada':'status-proposta','Negociação/Decisão':'status-proposta',
+    'Venda Ganha':'status-fechado','Sem interação':'status-sem','Sem interesse':'status-interesse',
+    'Novo':'status-novo','Contato feito':'status-contato','Visita agendada':'status-visita',
+    'Proposta enviada':'status-proposta','Fechado':'status-fechado'
+  };
   return m[s]||'status-sem';
 }
 
@@ -246,6 +383,7 @@ async function salvarAtendimento() {
     document.getElementById('alert-salvo').style.display = 'flex';
     document.getElementById('novo-feedback').value = '';
     mostrarLead(leadAtual);
+    buscarMeusLeads(corretorNome);
     setTimeout(()=>document.getElementById('alert-salvo').style.display='none', 4000);
   } catch(e) {
     alert('Erro ao salvar. Verifique a conexão.');
